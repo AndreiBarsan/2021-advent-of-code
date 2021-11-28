@@ -38,13 +38,13 @@ fn check_with_second_rule(password: &str, rule: &Rule) -> bool {
         return false;
     }
 
-    let lo_char: char = match password.chars().nth(rule.lo as usize) {
+    let lo_char: char = match password.chars().nth((rule.lo - 1) as usize) {
         Some(ch) => ch,
-        None => panic!("")
+        None => panic!("Unexpected offset")
     };
-    let hi_char: char = match password.chars().nth(rule.hi as usize) {
+    let hi_char: char = match password.chars().nth((rule.hi - 1) as usize) {
         Some(ch) => ch,
-        None => panic!("")
+        None => panic!("Unexpected offset")
     };
 
     (lo_char == rule.ch) ^ (hi_char == rule.ch)
@@ -63,7 +63,10 @@ fn main() {
                 let rule_and_password: Vec<&str>  = line_str.split(":").collect();
                 let rule_str = rule_and_password[0];
                 let rule = parse_rule(rule_str);
-                let password = rule_and_password[1];
+                // I forgot to do the .trim() initially, so all strings were actually " xyz", so the second rule checks
+                // actually worked correctly, in spite of an off-by-one error, LOL. First time in a long while I
+                // actually made two bugs that cancelled each other out.
+                let password = rule_and_password[1].trim();
 
                 let pass_first = check_with_rule(password, &rule);
                 let pass_second = check_with_second_rule(password, &rule);
