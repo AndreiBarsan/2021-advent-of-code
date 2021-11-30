@@ -52,7 +52,7 @@ fn check_with_second_rule(password: &str, rule: &Rule) -> bool {
 
 
 fn main() {
-    let input_path = Path::new("../2020/002-input.txt");
+    let input_path = Path::new("../input/002-input.txt");
     let mut counter_first: i32 = 0;
     let mut counter_second: i32 = 0;
     let mut total: i32 = 0;
