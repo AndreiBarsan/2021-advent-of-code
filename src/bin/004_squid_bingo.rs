@@ -117,7 +117,7 @@ fn day_04_squid_bingo() {
         won.push(false);
     }
 
-    'draw_loop: for draw in draws {
+    for draw in draws {
         for (board_idx, board) in (&mut boards).into_iter().enumerate() {
             if board.new_draw(draw) {
                 if ! won[board_idx] {
@@ -136,7 +136,6 @@ fn day_04_squid_bingo() {
                     won[board_idx] = true;
                     n_won += 1;
                 }
-                // break 'draw_loop;
             }
         }
     }

@@ -6,5 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-structopt = "0.3.13"            # 21st century CLIs.
-indicatif = "0.16.2"            # Pretty progress bars and tickers.
+regex       = "1"
+structopt   = "0.3.13"              # 21st century CLIs.
+indicatif   = "0.16.2"              # Pretty progress bars and tickers.
+lazy_static = "*"                   # Lazy static variables, such as regexes.
