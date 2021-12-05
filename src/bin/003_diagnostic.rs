@@ -77,7 +77,7 @@ fn day_03_diagnostic(args: &Cli) {
     let gamma = bin_to_dec((&bits_gamma[..n_digits]).to_vec());
     let epsilon = bin_to_dec((&bits_epsilon[..n_digits]).to_vec());
 
-    println!("{}", gamma * epsilon);
+    println!("Part 1 Result: {}", gamma * epsilon);
 
     // Part 2
     let mut codes_oxygen = codes.to_vec();
@@ -87,14 +87,17 @@ fn day_03_diagnostic(args: &Cli) {
         codes_oxygen = filter_by_bit(&codes_oxygen, bit_idx, true);
         codes_co2 = filter_by_bit(&codes_co2, bit_idx, false);
     }
-    println!("{}, {}", codes_oxygen.len(), codes_co2.len());
-    println!("{:?}, {:?}", codes_oxygen[0], codes_co2[0]);
 
-    let oxygen_val = bin_to_dec(codes_oxygen[0].chars().into_iter().map(|x| (x as i32) - ('0' as i32)).collect());
-    let co2_val = bin_to_dec(codes_co2[0].chars().into_iter().map(|x| (x as i32) - ('0' as i32)).collect());
-    println!("{}", oxygen_val);
-    println!("{}", co2_val);
-    println!("{}", oxygen_val * co2_val);
+    let oxygen_val = bin_str_to_dec(&codes_oxygen[0]);
+    let co2_val = bin_str_to_dec(&codes_co2[0]);
+    println!("Part 2:");
+    println!("    O2: {}", oxygen_val);
+    println!("   CO2: {}", co2_val);
+    println!("Result: {}", oxygen_val * co2_val);
+}
+
+fn bin_str_to_dec(bit_string: &String) -> i32 {
+    bin_to_dec(bit_string.chars().into_iter().map(|x| (x as i32) - ('0' as i32)).collect())
 }
 
 fn bin_to_dec(stuff: Vec<i32>) -> i32
