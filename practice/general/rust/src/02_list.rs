@@ -6,6 +6,5 @@ enum List {
 }
 
 impl List {
-    poopie
 
 }
