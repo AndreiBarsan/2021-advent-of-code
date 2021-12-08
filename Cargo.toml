@@ -10,3 +10,7 @@ regex       = "1"
 structopt   = "0.3.13"              # 21st century CLIs.
 indicatif   = "0.16.2"              # Pretty progress bars and tickers.
 lazy_static = "*"                   # Lazy static variables, such as regexes.
+ndarray     = "0.15.0"              # n-dimensional array
+ndarray-stats = "0.5"               # Statistical stuff like median, percentiles, etc.
+noisy_float = "0.2.0"               # Needed for NaN-free floats in Rust, since we need the NaN-free-ness to allow a
+                                    # total ordering for statistical operations.
