@@ -9,7 +9,7 @@ const CMD_FORWARD: &str = "forward";
 
 
 fn day_02_dive() {
-    let input_path = Path::new("input/002.txt");
+    let input_path = Path::new("input/02.txt");
 
     let mut depth_a: i32 = 0;
     let mut depth_b: i32 = 0;

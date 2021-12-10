@@ -32,8 +32,8 @@ fn simulate(initial_state: &Vec<usize>, max_sim_steps: usize) -> usize {
 }
 
 fn day_06_lanternfish() {
-    let input_path = Path::new("input/006.txt");
-    // let input_path = Path::new("input/006-demo.txt");
+    let input_path = Path::new("input/06.txt");
+    // let input_path = Path::new("input/06-demo.txt");
 
     let mut data: String = "".to_string();
     if let Ok(lines) = read_lines(input_path) {

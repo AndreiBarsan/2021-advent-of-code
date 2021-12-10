@@ -128,8 +128,8 @@ impl LineSegment {
 
 
 fn day_05_hydro_vents() {
-    let input_path = Path::new("input/005.txt");
-    // let input_path = Path::new("input/005-demo.txt");
+    let input_path = Path::new("input/05.txt");
+    // let input_path = Path::new("input/05-demo.txt");
     let mut line_segments = Vec::new();
 
     if let Ok(lines) = read_lines(input_path) {

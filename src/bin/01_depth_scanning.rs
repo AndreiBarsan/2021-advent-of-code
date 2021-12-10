@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 fn main() {
     // Note: This path is relative to the repo root
-    let input_path = Path::new("input/001.txt");
+    let input_path = Path::new("input/01.txt");
 
     let mut prev: i32 = 99999999;
     let mut inc: i32 = 0;

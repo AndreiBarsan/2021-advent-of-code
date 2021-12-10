@@ -74,8 +74,8 @@ impl Board {
 
 
 fn day_04_squid_bingo() {
-    // let input_path = Path::new("input/004-demo.txt");
-    let input_path = Path::new("input/004.txt");
+    // let input_path = Path::new("input/04-demo.txt");
+    let input_path = Path::new("input/04.txt");
     let mut raw_lines = Vec::new();
 
     if let Ok(lines) = read_lines(input_path) {
