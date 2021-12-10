@@ -143,7 +143,6 @@ fn day_04_squid_bingo() {
 
 
 fn main() {
-    // let args = Cli::from_args();
     day_04_squid_bingo();
 }
 

@@ -14,7 +14,7 @@ fn day_07_crabs() {
     // let data = &demo_data;
 
     // Yeah, sadly this is a bit too verbose for my taste...
-    // numpy: median = data.median()
+    // numpy: median = np.median(data)
     let median = data.mapv(|x| n64(x)).quantile_axis_mut(Axis(0), n64(0.5), &Nearest).unwrap().into_scalar();
     let median_round = f64::from(N64::round(median));
     let mean = data.mean().unwrap();
