@@ -90,8 +90,6 @@ fn part_2_decoding(input: &Vec<&str>) -> HashMap<char, char> {
         code_by_length.insert(ll, set_as_vec);
     }
 
-    let mut char_to_char: HashMap<char, char> = HashMap::new();
-
     let chars_in_one: HashSet<char> = code_by_length[&2usize][0].chars().collect();
     let chars_in_four: HashSet<char> = code_by_length[&4usize][0].chars().collect();
     let chars_in_seven: HashSet<char> = code_by_length[&3usize][0].chars().collect();
