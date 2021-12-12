@@ -1,5 +1,4 @@
 use std::fs;
-use std::collections::HashMap;
 
 
 /// Returns the number of flashes that occur after n_steps given the initial condition.
@@ -12,10 +11,6 @@ fn simulate_octopi(initial_octopi: &Vec<Vec<u32>>, n_steps: u32) -> u32 {
     let cols = octopi[0].len();
 
     for step in 0..n_steps {
-        // println!("Step: {}", step);
-        // if step < 10 {
-        //     println!("Before: {:?}", octopi);
-        // }
         // Base increase
         for row in 0..rows {
             for col in 0..cols {
