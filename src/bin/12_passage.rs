@@ -1,3 +1,6 @@
+/// Not going to lie, I am both proud and surprised I was able to code this path enumeration without looking up any
+/// undergraduate graph theory.
+///
 use std::fs;
 use std::collections::HashMap;
 use std::collections::HashSet;

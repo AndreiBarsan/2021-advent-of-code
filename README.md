@@ -5,9 +5,12 @@
  - [X] Rust basic CLI
  - [ ] Rust linear algebra and ndarrays (e.g., https://github.com/rust-ndarray/ndarray)
  - [ ] Rust <> C++ interop
- - [ ] Automatic linting and formatting
+ - [ ] Automatic linting and formatting (trunk?)
  - [ ] Finish all AoC problems (hints are OK from Dec 12 on, in the second half)
  - [ ] Basic unit testing
+
+## Bonus Goals
+ - [ ] Call PyTorch from Rust
 
 ## Learnings
  - Powerful type-safe, efficient, support for ndarrays, but still at times much more verbose than numpy.
