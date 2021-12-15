@@ -1,5 +1,8 @@
+/// 2021 AoC Day 13
+///
+/// Transparent paper folding - start with a big sheet with random-looking sparse dots, and keep folding along specified
+/// lines until you are through and a specific pattern of big letters emerges.
 use std::fs;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -21,8 +24,8 @@ fn parse_dots(dot_specs: &[&str]) -> HashSet<(usize, usize)> {
     let mut dots = HashSet::new();
     for spec in dot_specs {
         let parts: Vec<&str> = spec.split(",").collect();
-        let xx = usize::from_str(parts[0]).expect("dot spect int parse failed");
-        let yy = usize::from_str(parts[1]).expect("dot spect int parse failed");
+        let xx = usize::from_str(parts[0]).expect("dot spec int parse failed");
+        let yy = usize::from_str(parts[1]).expect("dot spec int parse failed");
         dots.insert((xx, yy));
     }
     dots

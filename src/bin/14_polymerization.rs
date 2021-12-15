@@ -1,9 +1,8 @@
+/// 2021 AoC Day 14
+///
+/// Polymer "evolution" similar to the lantern fish population, except a little trickier with the counting.
 use std::fs;
 use std::collections::HashMap;
-use std::collections::BTreeMap;
-use std::str::FromStr;
-
-// TODO(andrei): Remove BTreeMap as it's not helpful...
 
 #[derive(Debug)]
 struct InsertionRule {
@@ -49,21 +48,18 @@ fn polymerize(polymer_template: &String, insertion_rules: &HashMap<String, char>
 }
 
 
+/// Like 'polymerize', only operating on histogram-based representations of polymers, for vastly improved efficiency.
 fn polymerize_fast(
-    polymer_template: &BTreeMap<String, usize>,
-    tokens: &Vec<String>,
+    polymer_template: &HashMap<String, usize>,
     insertion_rules: &HashMap<String, char>
-) -> (BTreeMap<String, usize>, Vec<String>)
+) -> HashMap<String, usize>
 {
-    let mut new_polymer: BTreeMap<String, usize> = BTreeMap::new();
-    let mut new_tokens = Vec::new();
+    let mut new_polymer: HashMap<String, usize> = HashMap::new();
     if polymer_template.len() < 1 {
         panic!("Invalid polymer template, length must be at least 1 pair. [polymer_template={:?}]", polymer_template);
     }
 
-    // for (pair, initial_count) in polymer_template {
-    for pair in tokens {
-        let initial_count = polymer_template[pair];
+    for (pair, initial_count) in polymer_template {
         let maybe_sub = insertion_rules.get(pair);
         // XXX(andrei): flat_map
         if let Some(sub) = maybe_sub {
@@ -72,24 +68,16 @@ fn polymerize_fast(
 
             let a_str: String = a.iter().collect();
             let b_str: String = b.iter().collect();
-            // println!("{} -> {}, {} @ {}", pair, a_str, b_str, initial_count);
+
             *new_polymer.entry(a_str.to_string()).or_insert(0usize) += initial_count;
             *new_polymer.entry(b_str.to_string()).or_insert(0usize) += initial_count;
-
-            if ! new_tokens.contains(&a_str.to_string()) {
-                new_tokens.push(a_str.to_string());
-            }
-            if ! new_tokens.contains(&b_str.to_string()) {
-                new_tokens.push(b_str.to_string());
-            }
         }
         else {
             *new_polymer.entry(pair.to_string()).or_insert(0usize) += initial_count;
-            new_tokens.push(pair.to_string());
         }
     }
 
-    (new_polymer, new_tokens)
+    new_polymer
 }
 
 fn letter_stats(string: &String) -> HashMap<char, usize> {
@@ -102,14 +90,13 @@ fn letter_stats(string: &String) -> HashMap<char, usize> {
     stats
 }
 
-fn letter_stats_hist(data: &BTreeMap<String, usize>, tokens: &Vec<String>) -> HashMap<char, usize> {
+/// Computes the number of times each letter appears in the polymer represented by 'polymer'.
+///
+/// 'original', the initial t = 0 polymer, is needed to compute the count for the first letter correctly.
+fn letter_stats_hist(original: &String, polymer: &HashMap<String, usize>) -> HashMap<char, usize> {
     let mut stats = HashMap::new();
 
-    // let data_vec: Vec<(&String, &usize)> = data.iter().collect();
-    // println!("WTF: {:?}", data_vec[0]);
-
-    for string in tokens {
-        let count = data[string];
+    for (string, count) in polymer {
         let ch = string.chars().nth(1).unwrap();
         *stats.entry(ch).or_insert(0usize) += count;
     }
@@ -130,12 +117,12 @@ fn letter_stats_hist(data: &BTreeMap<String, usize>, tokens: &Vec<String>) -> Ha
     // in two pairs. The only exception are the first and last letters. Depending on how we count the other letters, we
     // need to manually add either 'A' or 'D's count.
     //
-    // In this implementation I chose to have to add 'A' manually.
-    let very_first_ch = tokens[0].chars().nth(0).unwrap();
-    let first_count = data[&tokens[0]];
+    // In this implementation I chose to have to add 'A' manually. (Note that this means ONE 'A', not adding ALL the
+    // occurrences of 'AX' to 'A's statistics.)
+    let very_first_ch = original.chars().nth(0).unwrap();
+    // let first_count = data[&tokens[0]];
     *stats.entry(very_first_ch).or_insert(0usize) += 1;
 
-    println!("Very first char: {}, offset  = {}", very_first_ch, first_count);
 
     stats
 }
@@ -167,11 +154,14 @@ fn part_1_code(stats: &HashMap<char, usize>) -> usize {
 }
 
 fn day_14_polymerization() {
+    let n_steps_part_1: usize = 10;
+    let n_steps_part_2: usize = 40;
     let input_fname = "input/14.txt";
     // let input_fname = "input/14-demo.txt";
+
+    // Input data processing
     let data: Vec<String> = fs::read_to_string(input_fname).expect("Unable to read file.")
         .split("\n").map(|x| x.to_string()).collect();
-
     let base = &data[0];
     let insertion_rule_specs = &data[2..];
 
@@ -179,42 +169,35 @@ fn day_14_polymerization() {
     let insertion_rules_map: HashMap<String, char> = insertion_rules.iter()
         .map(|r| (r.pattern.to_string(), r.addition.chars().nth(0).unwrap())).collect();
 
+    // Part 1 solution using naive strings
     let mut poly = base.to_string();
-    for _ in 0..10 {
+    for _ in 0..n_steps_part_1 {
         poly = polymerize(&poly, &insertion_rules_map);
     }
 
     let poly_stats = letter_stats(&poly);
-    println!("Naive mode stats: {:?}", poly_stats);
+    // println!("Naive mode stats: {:?}", poly_stats);
     let part_1_result = part_1_code(&poly_stats);
     println!("Part 1 solution: {}", part_1_result);
 
+    // Part 1 solution using the same idea as in the lantern fish case - represent the population (in this case, polymer
+    // components) as a histogram.
     println!("Part 2!");
-    let mut poly_hist: BTreeMap<String, usize> = BTreeMap::new();
+    let mut poly_hist: HashMap<String, usize> = HashMap::new();
     let mut tokens: Vec<String> = Vec::new();
     for idx in 0..(base.len() - 1) {
         let identifier = &base[idx..idx+2];
         *poly_hist.entry(identifier.to_string()).or_insert(0usize) += 1;
         tokens.push(identifier.to_string());
     }
-    for step_idx in 0..40 {
-        // println!("Initial: {:?}", poly_hist);
-        // WTF??
-        // XXX
-        let aux = polymerize_fast(&poly_hist, &tokens, &insertion_rules_map);
-        poly_hist = aux.0;
-        tokens = aux.1;
-        let count: usize = 1 + poly_hist.iter().map(|(k, v)| v).sum::<usize>();
-        // println!("Total count: {}", count);
+    for step_idx in 0..n_steps_part_2 {
+        poly_hist = polymerize_fast(&poly_hist, &insertion_rules_map);
     }
 
-    // 12271437788531 is not good - too high
-    // 12271437788531 after converting to use tokens but not fixing the final counting
-    // 12265810040684 after tweaking the counting - smaller, but wrong - too high
-    let poly_hist_stats = letter_stats_hist(&poly_hist, &tokens);
-    println!("{:?}", tokens);
-    println!("{:?}", poly_hist);
-    println!("{:?}", poly_hist_stats);
+    let poly_hist_stats = letter_stats_hist(&poly, &poly_hist);
+    // println!("{:?}", tokens);
+    // println!("{:?}", poly_hist);
+    // println!("{:?}", poly_hist_stats);
     let part_2_result = part_1_code(&poly_hist_stats);
     println!("Part 2 solution: {}", part_2_result);
 }
