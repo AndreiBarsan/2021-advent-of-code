@@ -1,3 +1,5 @@
+/// Simple corner detection in Rust.
+
 use image::GenericImageView;
 use image::GenericImage;
 
