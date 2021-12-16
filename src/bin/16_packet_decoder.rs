@@ -51,7 +51,7 @@ fn hex_char_to_bits(ch: char) -> Vec<u8> {
             vec![1,1,1,1],
         ];
     }
-    let ch_dig = if ch < '9' && '0' < ch {
+    let ch_dig = if ch <= '9' && '0' <= ch {
         (ch as usize) - ('0' as usize)
     }
     else {
@@ -86,8 +86,22 @@ fn bin_to_dec(stuff: &[u8]) -> i32 {
     acc
 }
 
+/// Parses nested packets up to 'n_bits_sp'
+fn parse_sub_packets_n_total_bits(bits: &[u8], n_bits_sp: usize) -> Vec<Packet> {
+    let mut cur_bit = 0usize;
+    let mut packets = Vec::new();
 
-fn parse_packet_bits(bits: &[u8]) -> Packet {
+    while cur_bit < n_bits_sp {
+        let (packet, bits_consumed) = parse_packet_bits(&bits[cur_bit..]);
+        cur_bit += bits_consumed;
+        println!("Packet = {:?}, consumed = {} / {}", packet, cur_bit, n_bits_sp);
+        packets.push(packet);
+    }
+
+    packets
+}
+
+fn parse_packet_bits(bits: &[u8]) -> (Packet, usize) {
     let version_bits = &bits[0..3];
     let type_bits = &bits[3..6];
 
@@ -110,33 +124,40 @@ fn parse_packet_bits(bits: &[u8]) -> Packet {
         }
 
         let lit_val = bin_to_dec(&nr_bits);
-        Packet { version: version, content: PacketContent::LITERAL(lit_val) }
+        (Packet { version: version, content: PacketContent::LITERAL(lit_val) }, cur + 5)
     }
     else {
+        let mut children = Vec::new();
         // parse nested packets as needed
         let mut bit_type_id = bits[6];
         let mut packet_start = 0;
+        let mut end = 0;
         if bit_type_id == 0 {
             packet_start = 7 + 15;
             let n_bits_bits = &bits[7..packet_start];
-            let n_bits_sp = bin_to_dec(n_bits_bits);
+            let n_bits_sp = bin_to_dec(n_bits_bits) as usize;
 
-            // let sp = parse_sub_packets_n_total_bits(&bits[packet_start..], n_bits_sp);
+            let mut result = parse_sub_packets_n_total_bits(&bits[packet_start..], n_bits_sp);
+            children.append(&mut result);
+            end = packet_start + n_bits_sp;
         }
         else {
             packet_start = 7 + 11;
             let n_sub_packets_bits = &bits[7..packet_start];
             let n_packets = bin_to_dec(n_sub_packets_bits);
 
+            panic!("Not yet implemented... :(");
+            // TODO return how many bits you actually consumed
             // let sp = parse_sub_packets_n_pack(&bits[packet_start..], n_packets);
         }
 
-        Packet{ version: version, content: PacketContent::OPERATOR(OperatorType::ADD, Vec::new()) }
+
+        (Packet{ version: version, content: PacketContent::OPERATOR(OperatorType::ADD, children) }, end)
     }
 }
 
 
-fn parse_packet(data: &String) -> Packet {
+fn parse_packet(data: &String) -> (Packet, usize) {
     let packet_bits = hex_str_to_bits(data);
     parse_packet_bits(&packet_bits)
 }
@@ -155,8 +176,21 @@ mod tests {
     #[test]
     fn test_basic_literal() {
         let raw_packet = "D2FE28".to_string();
-        let packet = parse_packet(&raw_packet);
+        let (packet, bits_consumed) = parse_packet(&raw_packet);
         let expected_packet = Packet { version: 6usize, content: PacketContent::LITERAL(2021i32) };
+        assert_eq!(packet, expected_packet);
+    }
+
+    #[test]
+    fn test_basic_operator() {
+        let raw_packet = "38006F45291200".to_string();
+        let (packet, bits_consumed) = parse_packet(&raw_packet);
+        let sub_a = Packet { version: 6usize, content: PacketContent::LITERAL(10i32) };
+        let sub_b = Packet { version: 2usize, content: PacketContent::LITERAL(20i32) };
+        let expected_packet = Packet {
+            version: 1usize,
+            content: PacketContent::OPERATOR(OperatorType::ADD, vec![sub_a, sub_b] ),
+        };
         assert_eq!(packet, expected_packet);
     }
 

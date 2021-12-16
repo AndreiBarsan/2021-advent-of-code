@@ -1,4 +1,4 @@
-/// 2021 AoC Day 15 - Chiton
+/// 2021 AoC Day 15: Chiton
 ///
 /// Basically just Dijkstra's on a grid.
 
@@ -97,7 +97,7 @@ fn enlarge_grid(grid: &Vec<Vec<u32>>, factor: usize) -> Vec<Vec<u32>> {
     let cols = grid[0].len();
 
     let mut enlarged_grid = Vec::new();
-    for _ in 0..(factor * rows) {
+    for r in 0..(factor * rows) {
         enlarged_grid.push(vec![0; factor * cols]);
     }
 
