@@ -1,6 +1,6 @@
 /// 2021 AoC Day 16: Packet Decoder
 ///
-/// Shunting yard (??) and packet bit decoding.
+/// Decoding packets from bits and evaluating operator trees.
 
 use std::fs;
 use std::collections::HashMap;
