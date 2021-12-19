@@ -14,3 +14,4 @@ ndarray     = "0.15.0"              # n-dimensional array
 ndarray-stats = "0.5"               # Statistical stuff like median, percentiles, etc.
 noisy_float = "0.2.0"               # Needed for NaN-free floats in Rust, since we need the NaN-free-ness to allow a
                                     # total ordering for statistical operations.
+nom         =   "7"                 # Parser combinator - parse stuff safely without painful hand-cranking.

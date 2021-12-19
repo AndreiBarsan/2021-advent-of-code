@@ -1,0 +1,232 @@
+/// 2021 AoC Day 18: Snailfish
+///
+/// TBD
+
+// #[macro_use]
+// extern crate nom;
+
+use std::fs;
+use std::fmt;
+
+// use nom::{
+//     bytes::complete::{tag, take_while_m_n},
+// };
+
+// use nom::{
+//   IResult,
+//   branch::alt,
+//   multi::{many0, many1},
+//   combinator::{opt, recognize},
+//   sequence::{preceded, terminated, tuple},
+//   character::complete::{char, one_of, multispace0},
+// };
+
+#[derive(Debug, Eq, PartialEq)]
+enum SnailNum {
+    Val(u32),
+    Pair(Box<SnailNum>, Box<SnailNum>),
+}
+
+impl fmt::Display for SnailNum {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SnailNum::Val(nr) => write!(f, "{}", nr),
+            SnailNum::Pair(left, right) => write!(f, "[{},{}]", left, right),
+        }
+    }
+}
+
+impl SnailNum {
+    fn as_flat(&self, base_depth: u32) -> Vec<(u32, u32)> {
+        // let mut stuff: Vec<u32, u32, Box<SnailNum>> = Vec::new();
+        match self {
+            SnailNum::Val(nr) => vec![(base_depth, *nr)],
+            SnailNum::Pair(left, right) => {
+                let mut res = left.as_flat(base_depth + 1);
+                res.extend(right.as_flat(base_depth + 1));
+                res
+            }
+        }
+    }
+}
+
+/// Used in very inefficient parsing
+/// TODO(andrei): Use 'nom' properly here.
+fn find_matching_bracket(data: &[char]) -> usize {
+    let mut n_open: usize = 0;
+
+    for (idx, ch) in data.iter().enumerate() {
+        if ch == &'[' {
+            n_open += 1
+        }
+        else if ch == &']' {
+            if n_open == 0 {
+                return idx;
+            }
+
+            n_open -= 1;
+        }
+    }
+
+    panic!("Invalid syntax");
+}
+
+
+/// sv = snail val
+macro_rules! sv {
+    ($x:expr) => {
+        SnailNum::Val($x)
+    };
+}
+
+
+/// Simply syntax sugar for building a snail number pair (of literals, other pairs, or combinations thereof).
+macro_rules! snail_pair {
+    ($x:expr,$y:expr) => {
+        {
+            SnailNum::Pair(Box::new($x), Box::new($y))
+        }
+    };
+}
+
+
+fn parse_snail_pair(data: &[char]) -> SnailNum {
+    let (left, right_start) = if data[1] == '[' {
+        // it's a nested pair
+        let matching_idx = find_matching_bracket(&data[2..]) + 2;
+        (parse_snail_pair(&data[1..(matching_idx + 1)]), matching_idx + 1 + 1)
+    }
+    else {
+        // it's just an integer
+        let literal = (data[1] as u32) - ('0' as u32);
+        // println!("Found literal: {}", literal);
+        // The '3' comes from '[N,' - i.e., point to whatever is after the comma.
+        (SnailNum::Val(literal), 3)
+    };
+
+    let right = if data[right_start] == '[' {
+        let matching_idx = find_matching_bracket(&data[right_start..]);
+        println!("right - {:?}", &data[right_start..(right_start + matching_idx + 1)]);
+        parse_snail_pair(&data[right_start..(right_start + matching_idx + 1)])
+    }
+    else {
+        let literal = (data[right_start] as u32) - ('0' as u32);
+        // println!("Found literal: {}", literal);
+        SnailNum::Val(literal)
+    };
+
+    snail_pair!(left, right)
+}
+
+
+// fn decimal(input: &str) -> IResult<&str, &str> {
+//     recognize(
+//       many1(
+//         terminated(one_of("0123456789"), many0(char('_')))
+//       )
+//     )(input)
+//   }
+
+// fn snail_tup(input: &str) -> IResult<&str, (u32, u32)> {
+//     let (input, _) = tag("[")(input)?;
+//     let stuff = tuple((decimal, multispace0, char(','), multispace0, decimal))(input);
+
+//     println!("{:?}", stuff);
+
+//     Ok((input, (1, 2) ))
+// }
+
+// named!(get_greeting<&str, &str>,
+//     ws!(
+//         alt!( tag_s!("hi") | tag_s!("bye"))
+//     )
+// );
+
+// fn first_explode() {
+
+// }
+
+
+fn day_18_snailfish() {
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic_parsing() {
+        let data: Vec<char> = "[3,4]".to_string().chars().collect();
+        let res = parse_snail_pair(&data[0..]);
+        assert_eq!(res, snail_pair!(sv!(3u32), sv!(4u32)));
+    }
+
+    #[test]
+    fn test_basic_nested() {
+        let samples: Vec<(&str, SnailNum)> = vec![
+            ("[3,[5,7]]", snail_pair!(sv!(3u32), snail_pair!(sv!(5u32), sv!(7u32)))),
+            ("[[3,5],7]", snail_pair!(snail_pair!(sv!(3u32), sv!(5u32)), sv!(7u32))),
+            ("[[3,5],[6,7]]", snail_pair!(snail_pair!(sv!(3u32), sv!(5u32)),
+                                          snail_pair!(sv!(6u32), sv!(7u32)))),
+            ("[[[1,2],5],[6,7]]", snail_pair!(snail_pair!(snail_pair!(sv!(1u32), sv!(2u32)), sv!(5u32)),
+                                          snail_pair!(sv!(6u32), sv!(7u32)))),
+        ];
+        for (data, expected) in samples {
+            let data_chars: Vec<char> = data.to_string().chars().collect();
+            let res = parse_snail_pair(&data_chars[0..]);
+            assert_eq!(res, expected);
+        }
+    }
+
+    /// Tests snail number parsing by verifying that the 'to_string()' of the parsed number equals the original.
+    #[test]
+    fn test_advanced_parse() {
+        let samples: Vec<&str> = vec![
+            "[[[[1,2],[3,4]],[[5,6],[7,8]]],9]",
+            "[[[[1,2],[3,4]],[[5,6],[7,8]]],9]",
+            "[[[9,[3,8]],[[0,9],6]],[[[3,7],[4,9]],3]]",
+            "[[[[1,3],[5,3]],[[1,3],[8,7]]],[[[4,9],[6,9]],[[8,2],[7,3]]]]",
+        ];
+        for raw_str in samples {
+            let raw_chars: Vec<char> = raw_str.to_string().chars().collect();
+            let parsed = parse_snail_pair(&raw_chars[..]);
+            let string_again = parsed.to_string();
+            assert_eq!(string_again, raw_str);
+        }
+    }
+
+    #[test]
+    fn test_as_flat() {
+        let s_a_raw: Vec<char> = "[[[[1,2],[3,4]],[[5,6],[7,8]]],9]".to_string().chars().collect();
+        let s_a = parse_snail_pair(&s_a_raw[..]);
+        let flat_res = s_a.as_flat(0u32);
+        assert_eq!(flat_res[0].0, 4);
+        assert_eq!(flat_res[0].1, 1);
+
+        assert_eq!(flat_res[3].0, 4);
+        assert_eq!(flat_res[3].1, 4);
+
+        assert_eq!(flat_res[8].0, 1);
+        assert_eq!(flat_res[8].1, 9);
+    }
+
+    #[test]
+    fn test_basic_reduction() {
+        // List of inputs and expected outputs.
+        let samples: Vec<(&str, &str)> = vec![
+            ("[[[[1,2],[3,4]],[[5,6],[7,8]]],9]", "[[[[1,2],[3,4]],[[5,6],[7,8]]],9]"),
+            ("[[[[[9,8],1],2],3],4]", "[[[[0,9],2],3],4]"),
+        ];
+        for (raw_input, raw_output) in samples {
+            let raw_in_chars: Vec<char> = raw_input.to_string().chars().collect();
+            let raw_out_chars: Vec<char> = raw_output.to_string().chars().collect();
+            let parsed_in = parse_snail_pair(&raw_in_chars[..]);
+            let parsed_out = parse_snail_pair(&raw_out_chars[..]);
+        }
+    }
+}
+
+fn main() {
+
+}
