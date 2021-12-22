@@ -2,7 +2,6 @@
 ///
 /// Spam shots from your cannon to see which ones land in a target area.
 
-// use std::cmp::{max, min};
 use std::collections::HashSet;
 
 struct World {

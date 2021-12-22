@@ -3,7 +3,6 @@
 /// Decoding packets from bits and evaluating operator trees.
 
 use std::fs;
-use std::collections::HashMap;
 use lazy_static::lazy_static;
 
 #[derive(Debug, Eq, PartialEq)]
