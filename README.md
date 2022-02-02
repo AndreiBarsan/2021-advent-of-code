@@ -3,15 +3,17 @@
 ## Learning Goals
  - [X] Rust basics (vectors, arrays, math, etc.)
  - [X] Rust basic CLI
- - [ ] Rust linear algebra and ndarrays (e.g., https://github.com/rust-ndarray/ndarray)
+ - [X] Rust linear algebra and ndarrays (e.g., https://github.com/rust-ndarray/ndarray)
  - [ ] Rust <> C++ interop
  - [ ] Simple GitHub Actions set up (just linting initially)
  - [ ] Automatic linting and formatting (trunk?)
  - [ ] Finish all AoC problems (hints are OK from Dec 12 on, in the second half)
  - [ ] Basic unit testing
+ - [ ] Advanced lifetime concepts using this tutorial: https://rust-unofficial.github.io/too-many-lists/second-final.html
 
 ## Bonus Goals
  - [ ] Call PyTorch from Rust
+ - [ ] `nom` (tutorial: https://blog.logrocket.com/parsing-in-rust-with-nom/)
 
 
 ## Running the Code
