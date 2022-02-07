@@ -18,9 +18,7 @@
 
 
 use std::fs;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::str::FromStr;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -416,25 +414,6 @@ fn main() {
     let inputs = fs::read_to_string(input_fname).expect("Unable to read file.");
     let commands: Vec<ALUInstruction> = inputs.split("\n").map(parse_alu_instruction).collect();
     let program_spec: Vec<(i64, i64, i64)> = get_program_spec();
-
-    let mut inp = digit_vec(18116121134117);
-    inp.reverse();
-    // println!(
-    //     "{}",
-    //     execute(&commands, &inp, 0i64, 0usize, commands.len() + 1usize)
-    // );
-    let mut inp_b = digit_vec(18116121134111);
-    inp_b.reverse();
-    // println!(
-    //     "{}",
-    //     execute(&commands, &inp_b, 0i64, 0usize, commands.len() + 1usize)
-    // );
-    let zz = exec_spec(&inp, &program_spec, 0i64);
-    assert_eq!(zz, 0i64);
-    let zz_b = exec_spec(&inp_b, &program_spec, 0i64);
-    assert_eq!(zz_b, 6i64);
-    println!("OK!");
-    // return;
 
     // let (part_one_opt, part_two_opt) = solve_version_a(&commands);
     // let (part_one_opt, part_two_opt) = solve_version_b(&commands);
