@@ -146,128 +146,160 @@ fn digit_vec(num: i64) -> Vec<i64> {
     aux
 }
 
-/// Brain dump of me trying to understand the input program - not actually used at runtime.
-// fn monad_rust(input: &Vec<i64>) {
-//     let mut mem_idx = 0usize;
-//     let mut w = 0i64;
-//     let mut x = 0i64;
-//     let mut y = 0i64;
-//     let mut z = 0i64;
+fn vec_to_num(digits: &Vec<i64>) -> i64 {
+    let mut nr = 0;
+    for d in digits {
+        nr = nr * 10 + d;
+    }
+    nr
+}
 
-//     w = input[mem_idx];
-//     mem_idx += 1;
-//     // Guaranteed z == 0 for the first digit
-//     // x = z % 26 + 14;
-//     x = 1;
-
-//     // Guaranteed x == 0 for the first digit, since (x := 14) != digit.
-//     // Thus y is guaranteed to be 1.
-//     y = 25 * x + 1;
-//     z = z * y;  // == 0
-//     // Guaranteed to be w + 12
-//     y = (w + 12) * x;       // 12 + digit
-//     z = z + y;              // 12 + first digit, always (13--21 inclusive)
-
-//     // Second digit
-//     w = input[mem_idx];
-//     mem_idx += 1;
-//     x = z + 10;         // 23--31 inclusive
-//     x = 1;              // always this, since 23 > 9
-//     y = (25 * x + 1); // == 26, always
-//     z = z * y; // (13--21) * 26
-//     y = (w + 9) * x;       // 9 + second digit, always (10--18 inclusive)
-//     z = z + y;  // (12 + d1) * 26 + (d2 + 9)
-
-//     // Third digit
-//     // ...
-//     w = input[mem_idx];
-//     mem_idx += 1;
-//     x = z % 26 + 13;
-//     x = 1;      // Since z % 26 + 13 will always be > any digit
-//     y = 25 * 1 + 1;
-//     z = z * y;  // == z * 26
-//     z += (w + 8) * 1;
-//     // ((12 + d1) * 26 + (d2 + 9)) * 26 + (d3 + 8)
-
-//     // Fourth digit (the first to have a negative coef)
-//     w = input[mem_idx];
-//     mem_idx += 1;
-
-//     x = z % 26 - 8;     // Can be negative!! Need the above expression % 26 to be small enough.
-//     z = z / 26;
-//     if x == w {
-//         x = 0;
-//     }
-//     else {
-//         x = 1;
-//     }
-//     z = z * (25 * x + 1);
-//     z = z + (w + 3) * x;
-
-//     // Fifth digit
-//     w = input[mem_idx];
-//     mem_idx += 1;
-//     // Sixth digit
-//     w = input[mem_idx];
-//     mem_idx += 1;
-//     // Seventh digit
-//     w = input[mem_idx];
-//     mem_idx += 1;
-
-//     // Eight digit
-//     w = input[mem_idx];
-//     mem_idx += 1;
-//     x = z % 26 - 11;
-//     z = z / 26;
-// }
-
+fn get_program_spec() -> Vec<(i64, i64, i64)> {
+    // 1  = peek
+    // 26 = pop
+    vec![
+        (1, 14, 12),    // d00
+        (1, 10, 9),
+        (1, 13, 8),
+        (26, -8, 3),
+        (1, 11, 0),
+        (1, 11, 11),
+        (1, 14, 10),
+        (26, -11, 13),
+        (1, 14, 3),
+        (26, -1, 10),
+        (26, -8, 10),   // d10
+        (26, -5, 14),   // d11
+        (26, -16, 6),   // d12
+        (26, -6, 5),    // d13
+    ]
+}
 
 fn digit_block(digit: i64, z_in: i64, a: i64, b: i64, c: i64) -> i64 {
-
+    // if a == 1
+    // PEEK into x
+    // elif a == 26
+    // POP into x
+    // end
+    // x += b
     let mut x = z_in % 26 + b;      // b is a possibly negative constant
     let mut z = z_in / a;       // a is either 1 or 26
 
     if x != digit {
+        // PUSH (digit + c)
         z = z * 26 + digit + c;
     }
-
     z
 }
 
+/// This version relies on the hint that the instructions implement a simple stack.
+///
+/// The stack is represented as the digits of a base-26 number stored in 'z'. The insight is you want the stack to be
+/// empty at the conclusion of the program, which means you need the digits to satisfy certain conditions so as to
+/// prevent any PUSH operations onto the stack which can be presented.
+///
+/// 'z = z * 26 + foo' pushes 'foo' onto the stack.
+/// 'x = z % 26; z /= 1' peeks at the top of the stack, putting the value into x.
+/// 'x = z % 26; z /= 26' pops x off z.
+///
+/// I found this final hint in the AoC Day 24 reddit thread, but did not actually look at any solution code /
+/// spreadsheet.
+fn solve_version_c() -> (Option<i64>, Option<i64>) {
+    // d00 == d13 - 6
+    // d01 == d12 + 7
+    // d02 == d03
+    // d04 == d11 + 5
+    // d05 == d10 - 3
+    // d06 == d07 + 1
+    // d08 == d09 - 2
 
+    // This can be solved manually based on the invariants from above, which, in turn, are inferred from the assembly.
+    let digits_max = vec![
+        3,
+        9,
+        9,
+        9,
+        9,
+        6,
+        9,
+        8,
+        7,
+        9,
+        9,      // d10
+        4,      // d11
+        2,      // d12
+        9,      // d13
+    ];
+    let digits_min = vec![
+        1,
+        8,
+        1,
+        1,
+        6,
+        1,
+        2,
+        1,
+        1,
+        3,
+        4,      // d10
+        1,      // d11
+        1,      // d12
+        7,      // d13
+    ];
+
+    (Some(vec_to_num(&digits_max)), Some(vec_to_num(&digits_min)))
+}
+
+
+/// Incomplete optimized modification of solution A which attempts to start from the end.
+/// Not currently functional - I gave up since this did not seem promising enough in terms of speed, and instead focused
+/// more on reverse-engineering the assembly for formulating version C.
 fn solve_version_b(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>) {
 
     let mut target_zs: HashMap<i64, i64> = HashMap::new();
     target_zs.insert((0i64), (0i64));
 
+    let spec = get_program_spec();
+
     for digit_idx in (0..14usize).rev() {
         let mut new_target_zs: HashMap<i64, i64> = HashMap::new();
-        println!("{}", digit_idx);
+        let mul = 10i64.pow(13u32 - (digit_idx as u32));
+        println!("Digit {}", digit_idx);
         for x in 1..10 {
             let mut digits = vec!(x);
             let instructions_per_digit = 18usize;
             let start_instruction = instructions_per_digit * digit_idx;
             let end_instruction = instructions_per_digit * (digit_idx + 1usize);
 
-            for candidate_z in 0..100 {
-                let z_val = execute(&commands, &digits, candidate_z, start_instruction, end_instruction);
-                let rust_z_val = exec_spec(&digits, &vec![(26, -6, 5)], candidate_z);
+            let candidates = if digit_idx == 0 {
+                0..1
+            }
+            else {
+                0..((target_zs.len() + 1) * 200)
+            };
+
+            for candidate_z in candidates {
+                // let classic_z_val = execute(&commands, &digits, candidate_z, start_instruction, end_instruction);
+                let z_val = exec_spec(&digits, &vec!(spec[digit_idx]), candidate_z as i64);
                 // println!("{}, {}", z_val, rust_z_val);
-                assert_eq!(z_val, rust_z_val);
+                // assert_eq!(z_val, rust_z_val);
 
                 if target_zs.contains_key(&z_val) {
-                    println!("z_val = {} @ digit = {} is a good last-block input", candidate_z, x);
-                    new_target_zs.insert(candidate_z, x);
+                    // println!("z_val = {} @ digit = {} is a good last-block input", candidate_z, x);
+                    new_target_zs.insert(candidate_z as i64, x * mul + target_zs[&z_val]);
                 }
             }
 
-            // for (initial_z, min_input) in &z_to_min_input {
         }
         println!("Target Zs contains: {}", new_target_zs.len());
         target_zs = new_target_zs;
 
+        if digit_idx == 1 {
+            println!("{:?}", target_zs);
+        }
+
         // if digit_idx == 12 {
-        break;
+        //     break;
         // }
     }
 
@@ -382,29 +414,8 @@ fn exec_spec(digits: &Vec<i64>, spec: &Vec<(i64, i64, i64)>, start_z: i64) -> i6
 fn main() {
     let input_fname = "input/24.txt";
     let inputs = fs::read_to_string(input_fname).expect("Unable to read file.");
-
     let commands: Vec<ALUInstruction> = inputs.split("\n").map(parse_alu_instruction).collect();
-    // for cmd in &commands {
-    //     println!("{:?}", cmd);
-    // }
-
-    let program_spec: Vec<(i64, i64, i64)> = vec![
-        (1, 14, 12),
-        (1, 10, 9),
-        (1, 13, 8),
-        (26, -8, 3),
-        (1, 11, 0),
-        (1, 11, 11),
-        (1, 14, 10),
-        (26, -11, 13),
-        (1, 14, 3),
-        (26, -1, 10),
-        (26, -8, 10),
-        (26, -5, 14),
-        (26, -16, 6),
-        (26, -6, 5),
-    ];
-
+    let program_spec: Vec<(i64, i64, i64)> = get_program_spec();
 
     let mut inp = digit_vec(18116121134117);
     inp.reverse();
@@ -412,20 +423,22 @@ fn main() {
     //     "{}",
     //     execute(&commands, &inp, 0i64, 0usize, commands.len() + 1usize)
     // );
-    // let mut inp_b = digit_vec(18116121134111);
-    // inp_b.reverse();
+    let mut inp_b = digit_vec(18116121134111);
+    inp_b.reverse();
     // println!(
     //     "{}",
     //     execute(&commands, &inp_b, 0i64, 0usize, commands.len() + 1usize)
     // );
     let zz = exec_spec(&inp, &program_spec, 0i64);
     assert_eq!(zz, 0i64);
+    let zz_b = exec_spec(&inp_b, &program_spec, 0i64);
+    assert_eq!(zz_b, 6i64);
     println!("OK!");
     // return;
 
     // let (part_one_opt, part_two_opt) = solve_version_a(&commands);
-    let (part_one_opt, part_two_opt) = solve_version_b(&commands);
-    return;
+    // let (part_one_opt, part_two_opt) = solve_version_b(&commands);
+    let (part_one_opt, part_two_opt) = solve_version_c();
 
     // Computed with the slow method, used to validate the faster re-implementations.
     let expected_part_one_solution: i64 = 39999698799429;
