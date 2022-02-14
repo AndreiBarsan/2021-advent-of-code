@@ -5,15 +5,23 @@
 ///
 /// On the flip side, I learned several new things about Rust:
 ///  - operator overloading
+///  - the basics of nalgebra
+
+extern crate nalgebra as na;
 
 use std::fs;
 use std::ops;
-use regex::Regex;
-use lazy_static::lazy_static;
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use regex::Regex;
+use lazy_static::lazy_static;
+
+// use nalgebra::linalg::SVD;
+use na::{DMatrix, Matrix3, Point3};
+use na::geometry::Rotation3;
+
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct Point3d {
@@ -33,6 +41,18 @@ impl Point3d {
 
     fn norm(&self) -> f64 {
         self.norm_squared().sqrt()
+    }
+
+    fn rotated(&self, rmat: &Rotation3<f64>) -> Point3d {
+        let self_na = Point3::new(self.x as f64, self.y as f64, self.z as f64);
+
+        let res = rmat * self_na;
+
+        Point3d {
+            x: res[0].round() as i64,
+            y: res[1].round() as i64,
+            z: res[2].round() as i64,
+        }
     }
 }
 
@@ -126,6 +146,23 @@ impl Triangle3d {
         let bc_sq = self.bc().norm_squared();
         ((ac_sq + bc_sq - ab_sq) / (2f64 * ac * bc)).acos()
     }
+
+    fn rotated(&self, rmat: &Rotation3<f64>) -> Triangle3d {
+        let a_rot = self.a.rotated(rmat);
+        let b_rot = self.b.rotated(rmat);
+        let c_rot = self.c.rotated(rmat);
+
+        Triangle3d {
+            a: a_rot,
+            b: b_rot,
+            c: c_rot
+        }
+    }
+
+    // Check for congruency, assuming a/b/c follow consistent convention.
+    fn congruent(&self, other: &Triangle3d) -> bool {
+        self.ab() == other.ab() && self.ac() == other.ac() && self.bc() == other.bc()
+    }
 }
 
 fn parse_beacon(line_str: &str) -> Spec {
@@ -187,8 +224,6 @@ impl PartialOrd for Candidate {
 }
 
 
-
-
 /// Extracts a dynamic number k_i of keypoints and float fingerprints from the list points.
 fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> {
     // TODO(andrei): If necessary, use a KD-tree here.
@@ -230,9 +265,9 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
                     let tri_tmp = Triangle3d{ a: p, b: knn[i], c: knn[j] };
 
                     // Skip isosceles triangles as they could be ambiguous when matching
-                    if (tri_tmp.ab() - tri_tmp.ac()).norm() < 1e-5  || (tri_tmp.ab() - tri_tmp.bc()).norm() < 1e-5 || (tri_tmp.ac() - tri_tmp.ab()).norm() < 1e-5 {
-                        continue;
-                    }
+                    // if (tri_tmp.ab() - tri_tmp.ac()).norm() < 1e-5  || (tri_tmp.ab() - tri_tmp.bc()).norm() < 1e-5 || (tri_tmp.ac() - tri_tmp.ab()).norm() < 1e-5 {
+                    //     continue;
+                    // }
                     // Debug code
                     if (tri_tmp.a_angle_rad() + tri_tmp.b_angle_rad() + tri_tmp.c_angle_rad() - 3.1415926535).abs() > 1e-5 {
                         panic!("Incorrect angles in triangle!");
@@ -255,6 +290,7 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
                         }
                     };
 
+                    // let tri = tri_tmp;
                     let area = tri.area();
                     results.push((tri, area));
                 }
@@ -268,32 +304,111 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
 }
 
 
-/// Finds the relative transform between two triangles.
+// fn procrustes_alignment() {
+//     println!("Debug");
+// }
+
+
+/// Returns the (roll, pitch, yaw)
+fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<(f64, f64, f64)> {
+    // TODO(andrei): Clean up the code. Cache rotations.
+    let pi = std::f64::consts::PI;
+    for roll in vec![0f64, -pi / 2f64, pi / 2f64, pi] {
+        for pitch in vec![0f64, -pi / 2f64, pi / 2f64, pi] {
+            for yaw in vec![0f64, -pi / 2f64, pi / 2f64, pi] {
+                // TODO(andrei): Watch out for gimbal lock.
+                let rot = Rotation3::from_euler_angles(roll, pitch, yaw);
+                // println!("{:?}", rot);
+
+                let r_tri_b = tri_b.rotated(&rot);
+                if tri_a.congruent(&r_tri_b) {
+                    // If we don't break, we will definitely find a few more good rotations due to Gimbal lock - we are
+                    // looping an over-parametrized space because Andrei is lazy.
+                    // println!("{} {} {} = good rot", roll, pitch, yaw);
+                    return Some((roll, pitch, yaw));
+                }
+            }
+        }
+    }
+    None
+}
+
+
+fn match_translation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d, initial_rpy: (f64, f64, f64)) -> Option<Point3d> {
+
+    let rot = Rotation3::from_euler_angles(initial_rpy.0, initial_rpy.1, initial_rpy.2);
+    let r_tri_b = tri_b.rotated(&rot);
+
+    let a_off = r_tri_b.a - tri_a.a;
+    let b_off = r_tri_b.b - tri_a.b;
+    let c_off = r_tri_b.c - tri_a.c;
+
+    if (a_off - b_off).norm() > 1e-5 || (a_off - c_off).norm() > 1e-5 {
+        panic!("Inconsistent translation estimation. Math bug likely.");
+    }
+
+    Some(a_off)
+}
+
+
+
+
+
+/// Finds the SE(3) relative transform between two triangles, searching over fixed rotation candidates.
+///
 /// Assumes rotations are multiples of pi/2 and triangles are not equilateral or isosceles.
-fn match_triangles_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> bool {
+fn match_triangles_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<((f64, f64, f64), Point3d)> {
     let ab_a = tri_a.ab();
     let ab_b = tri_b.ab();
     let ac_b = tri_b.ac();
     let bc_b = tri_b.bc();
 
-    false
+    let rot = match_rotation_naive(tri_a, tri_b);
+
+    // TODO(andrei): Clean up this ugly "functional" code.
+    let rot_trans = rot.map(|rpy| match_translation_naive(tri_a, tri_b, rpy)).flatten();
+    match rot_trans {
+        Some(trans) => Some((rot.unwrap(), trans)),
+        None => None
+    }
 }
 
 
 
-fn match_features(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3d, f64)>>) {
+fn match_features(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3d, f64)>>, n_scanners: i64) {
     // Brute-force matching since the number of scanners is <30 and each will have something like 5 triangles.
 
-    // TODO scanner count
-    for scan_a in 0..5 {
-        for scan_b in (scan_a + 1)..5 {
+    for scan_a in 0..n_scanners {
+        for scan_b in (scan_a + 1)..n_scanners {
+            println!("\n\n{} --> {}", scan_a, scan_b);
+
+            let mut found_tform = false;
 
             for (tri_a, fingerprint_a) in scanner_kp_feats.get(&scan_a).unwrap() {
                 for (tri_b, fingerprint_b) in scanner_kp_feats.get(&scan_b).unwrap() {
                     if (fingerprint_a - fingerprint_b).abs() < 1e-5 {
-                        println!("Scan {} matches {} @ {:?}", scan_a, scan_b, tri_a);
+                        // println!("Scan {} matches {} @ \n\t{:?}\n\t{:?}", scan_a, scan_b, tri_a, tri_b);
+
+                        let maybe_tform = match_triangles_naive(tri_a, tri_b);
+                        match maybe_tform {
+                            Some((rpy, trans)) => {
+                                println!("{:?}, {:?}", rpy, trans);
+                                found_tform = true;
+                                // break;   // disabled for debugging
+                            }
+                            None => {
+
+                            }
+                        }
                     }
                 }
+            }
+
+            if found_tform {
+                // ...
+            }
+            else {
+                println!("ooh wee, could not find a transform...")
             }
 
         }
@@ -310,6 +425,8 @@ fn day_19_beacon_scanner() {
         .split("\n").filter(|x| x.len() > 0).map(|x| str_to_coords_or_scanner(x)).collect();
 
     // println!("{:?}", scanner_beacons);
+
+    // procrustes_alignment();
 
     let mut scanners: HashMap<i64, Vec<Point3d>> = HashMap::new();
     let mut cur_scanner: i64 = 0;
@@ -328,8 +445,8 @@ fn day_19_beacon_scanner() {
 
     // println!("Features for scanner #2: {:?}", scanner_keypoint_features[&2]);
 
-    match_features(&scanner_keypoint_features);
-    // find_overlapping_scanners();
+    match_features(&scanner_keypoint_features, scanners.len() as i64);
+    // // find_overlapping_scanners();
     // solve_scanner_poses();
 }
 
