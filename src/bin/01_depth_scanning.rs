@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+/// 2021 AoC Day 01: Sonar Sweep
+///
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -16,6 +17,7 @@ fn main() {
     let mut q: [i32; 3] = [0i32, 0i32, 0i32];
     let mut prev_sum: i32 = 0;
 
+    #[allow(clippy::manual_flatten)]
     if let Ok(lines) = read_lines(input_path) {
         for maybe_line in lines {
             if let Ok(line) = maybe_line {
@@ -34,10 +36,8 @@ fn main() {
                 let cur_sum = q.iter().sum();
 
                 nrs += 1;
-                if nrs >= 4 {
-                    if cur_sum > prev_sum {
-                        inc_sum += 1;
-                    }
+                if nrs >= 4 && cur_sum > prev_sum {
+                    inc_sum += 1;
                 }
                 prev_sum = cur_sum;
             }

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 /// 2021 AoC Day 24: Arithmetic Logic Unit
 ///
 /// Find the largest and smallest 14-digit values which make a custom assembly program output zero.
@@ -16,6 +15,7 @@ use std::collections::HashMap;
 /// Looking at hints from other people on Reddit, it seems it may be beneficial to start from the end. The 14-chunk
 /// observation is definitely 100% a correct insight. I also wonder whether we can chunk the program differently, so as
 /// to exploit the modulo operations better. There's probably also a higher-level meaning to the 'z' register.
+use std::collections::HashMap;
 use std::fs;
 use std::str::FromStr;
 
