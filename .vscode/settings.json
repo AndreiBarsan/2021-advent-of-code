@@ -1,0 +1,6 @@
+{
+    "editor.renderWhitespace": "all",
+    "[rust]": {
+        "editor.formatOnSave": true
+    }
+}
