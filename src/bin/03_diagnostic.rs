@@ -3,7 +3,6 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use structopt::StructOpt;
 
-
 fn filter_by_bit(codes: &Vec<String>, bit_idx: usize, most_common: bool) -> Vec<String> {
     let n_codes = codes.len() as u32;
     if n_codes <= 1 {
@@ -11,23 +10,28 @@ fn filter_by_bit(codes: &Vec<String>, bit_idx: usize, most_common: bool) -> Vec<
         return codes.to_vec();
     }
 
-    let n_ones: usize = codes.into_iter().filter(|code| code.chars().nth(bit_idx) == Some('1')).count();
+    let n_ones: usize = codes
+        .into_iter()
+        .filter(|code| code.chars().nth(bit_idx) == Some('1'))
+        .count();
 
     let mut target: char = '0';
     if most_common {
         if n_ones >= (n_codes as f32 / 2.0).ceil() as usize {
             target = '1';
         }
-    }
-    else
-    {
+    } else {
         if n_ones < (n_codes as f32 / 2.0).ceil() as usize {
             target = '1';
         }
     }
     // println!("{}, {}/{} ones => target = {}", bit_idx, n_ones, n_codes, target);
 
-    codes.to_vec().into_iter().filter(|code| code.chars().nth(bit_idx) == Some(target)).collect()
+    codes
+        .to_vec()
+        .into_iter()
+        .filter(|code| code.chars().nth(bit_idx) == Some(target))
+        .collect()
 }
 
 #[derive(StructOpt)]
@@ -36,7 +40,6 @@ struct Cli {
     #[structopt(long, parse(from_os_str))]
     input_fpath: std::path::PathBuf,
 }
-
 
 fn day_03_diagnostic(args: &Cli) {
     let mut bits: [i32; 128] = [0; 128];
@@ -68,8 +71,7 @@ fn day_03_diagnostic(args: &Cli) {
     for idx in 0..n_digits {
         if bits[idx] > (n_lines as i32 / 2i32) {
             bits_gamma[idx] = 1;
-        }
-        else {
+        } else {
             bits_epsilon[idx] = 1;
         }
     }
@@ -97,11 +99,16 @@ fn day_03_diagnostic(args: &Cli) {
 }
 
 fn bin_str_to_dec(bit_string: &String) -> i32 {
-    bin_to_dec(bit_string.chars().into_iter().map(|x| (x as i32) - ('0' as i32)).collect())
+    bin_to_dec(
+        bit_string
+            .chars()
+            .into_iter()
+            .map(|x| (x as i32) - ('0' as i32))
+            .collect(),
+    )
 }
 
-fn bin_to_dec(stuff: Vec<i32>) -> i32
-{
+fn bin_to_dec(stuff: Vec<i32>) -> i32 {
     let mut idx: i32 = (stuff.len() - 1) as i32;
     let mut acc: i32 = 0;
     let mut exp: i32 = 1;
@@ -113,13 +120,12 @@ fn bin_to_dec(stuff: Vec<i32>) -> i32
         exp = exp * 2;
         idx -= 1;
         if idx < 0 {
-            break
+            break;
         }
     }
 
     acc
 }
-
 
 fn main() {
     let args = Cli::from_args();
@@ -127,7 +133,9 @@ fn main() {
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }

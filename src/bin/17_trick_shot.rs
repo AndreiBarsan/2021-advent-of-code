@@ -1,7 +1,6 @@
 /// 2021 AoC Day 17: Trick Shot
 ///
 /// Spam shots from your cannon to see which ones land in a target area.
-
 use std::collections::HashSet;
 
 struct World {
@@ -19,7 +18,6 @@ impl World {
     }
 }
 
-
 /// Launches from (0, 0) with (vx, vy) initial velocity, returning a (success, max_y) tuple.
 fn shoot(vx: i64, vy: i64, world: &World, max_iter: usize) -> (bool, i64) {
     let mut cur_x: i64 = 0;
@@ -33,8 +31,7 @@ fn shoot(vx: i64, vy: i64, world: &World, max_iter: usize) -> (bool, i64) {
         cur_y += cur_vy;
         if cur_vx > 0 {
             cur_vx -= 1;
-        }
-        else if cur_vx < 0 {
+        } else if cur_vx < 0 {
             cur_vx += 1;
         }
         cur_vy -= 1;
@@ -45,21 +42,25 @@ fn shoot(vx: i64, vy: i64, world: &World, max_iter: usize) -> (bool, i64) {
 
         if world.in_target(cur_x, cur_y) {
             return (true, max_y);
-        }
-        else if world.beyond_target(cur_x, cur_y) {
+        } else if world.beyond_target(cur_x, cur_y) {
             return (false, max_y);
         }
     }
 
-    panic!("Could not reach our pass world after {} iterations...", max_iter);
+    panic!(
+        "Could not reach our pass world after {} iterations...",
+        max_iter
+    );
 }
-
 
 fn day_17_trick_shot() {
     // demo
     // let world = World { target_x: (20, 30), target_y: (-10, -5) };
     // challenge
-    let world = World { target_x: (153, 199), target_y: (-114, -75) };
+    let world = World {
+        target_x: (153, 199),
+        target_y: (-114, -75),
+    };
 
     let mut good_inits = HashSet::new();
 
@@ -81,7 +82,6 @@ fn day_17_trick_shot() {
     // need any DP after all.
     println!("Part 2: {}", good_inits.len());
 }
-
 
 fn main() {
     day_17_trick_shot();

@@ -1,12 +1,11 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
 /// 2021 AoC Day 12
 ///
 /// Not going to lie, I am both proud and surprised I was able to code this path enumeration without looking up any
 /// undergraduate graph theory.
 ///
 use std::fs;
-use std::collections::HashMap;
-use std::collections::HashSet;
-
 
 const START_NODE: &str = "start";
 const END_NODE: &str = "end";
@@ -33,16 +32,16 @@ fn can_visit_part_1(graph: &Graph, node: &Node, cur_path: &Vec<String>) -> bool 
 /// a Vec to count stuff and it will be an order of magnitude faster.
 fn can_visit_part_2(graph: &Graph, node: &Node, cur_path: &Vec<String>) -> bool {
     if node.large {
-        return true
+        return true;
     }
     if node.name == START_NODE {
-        return false
+        return false;
     }
 
     // allow a small node to be visited once **or twice**
     let mut stats: HashMap<&String, usize> = HashMap::new();
     for el in cur_path {
-        if ! graph.nodes[el].large {
+        if !graph.nodes[el].large {
             *stats.entry(el).or_insert(0usize) += 1;
         }
     }
@@ -67,7 +66,11 @@ fn get_paths_from_base(graph: &Graph, cur_path: &Vec<String>) -> Vec<Vec<String>
     let mut paths_reached_end = Vec::new();
 
     let part_1 = true;
-    let can_visit = if part_1 { can_visit_part_1 } else { can_visit_part_2 };
+    let can_visit = if part_1 {
+        can_visit_part_1
+    } else {
+        can_visit_part_2
+    };
 
     for neigh in &graph.nodes[latest].neighbors {
         if neigh == END_NODE {
@@ -75,16 +78,14 @@ fn get_paths_from_base(graph: &Graph, cur_path: &Vec<String>) -> Vec<Vec<String>
             let mut new_path = cur_path.to_vec();
             new_path.push(neigh.to_string());
             paths_reached_end.push(new_path);
-        }
-        else if can_visit(&graph, &graph.nodes[neigh], cur_path) {
+        } else if can_visit(&graph, &graph.nodes[neigh], cur_path) {
             // todo add recursive call paths to paths_reached_end
             let mut new_path = cur_path.to_vec();
             new_path.push(neigh.to_string());
 
             let mut rec_paths = get_paths_from_base(graph, &new_path);
             paths_reached_end.append(&mut rec_paths);
-        }
-        else {
+        } else {
             // nothing to do - can't visit neighbor, and neighbor is not an end either
         }
     }
@@ -105,28 +106,39 @@ fn graph_from_data(data: &String) -> Graph {
         let end_str = &start_end[1];
 
         for name in &start_end {
-            if ! nodes.contains_key(name) {
+            if !nodes.contains_key(name) {
                 let is_large: bool = &name.to_ascii_uppercase() == name;
-                let new_node = Node{large: is_large, name: name.to_string(), neighbors: HashSet::new()};
+                let new_node = Node {
+                    large: is_large,
+                    name: name.to_string(),
+                    neighbors: HashSet::new(),
+                };
                 nodes.insert(name.to_string(), new_node);
             }
         }
 
         // The key here is using 'get_mut' so we can actually modify the node that we are accessing.
-        nodes.get_mut(end_str).unwrap().neighbors.insert(start_str.to_string());
-        nodes.get_mut(start_str).unwrap().neighbors.insert(end_str.to_string());
+        nodes
+            .get_mut(end_str)
+            .unwrap()
+            .neighbors
+            .insert(start_str.to_string());
+        nodes
+            .get_mut(start_str)
+            .unwrap()
+            .neighbors
+            .insert(end_str.to_string());
     }
 
-    if ! nodes.contains_key(START_NODE) {
+    if !nodes.contains_key(START_NODE) {
         panic!("Graph must contain a start node!");
     }
-    if ! nodes.contains_key(END_NODE) {
+    if !nodes.contains_key(END_NODE) {
         panic!("Graph must contain an end node!");
     }
 
-    Graph{nodes: nodes}
+    Graph { nodes: nodes }
 }
-
 
 fn day_12_passage() {
     // let data = fs::read_to_string("input/12-demo-01.txt").expect("Unable to read file.");

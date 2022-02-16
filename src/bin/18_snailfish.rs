@@ -1,14 +1,12 @@
+use std::fmt;
 /// 2021 AoC Day 18: Snailfish
 ///
 /// TBD
 /// Very tricky for me as a Rust beginner, since we need to build, manage, and operate upon (mutate) a tree, which is
 /// difficult to do with Rust's reference and borrowing semantics.
-
 // #[macro_use]
 // extern crate nom;
-
 use std::fs;
-use std::fmt;
 
 // use nom::{
 //     bytes::complete::{tag, take_while_m_n},
@@ -38,20 +36,24 @@ impl fmt::Display for SnailNum<'_> {
     }
 }
 
-impl <'a> SnailNum<'a> {
+impl<'a> SnailNum<'a> {
     /// Note to self - we need to annotate the lifetimes since the compiler must know (and enforce) the fact that all
     /// tree node references have the same lifetime. This is normal, as all nodes of a tree should share the same
     /// lifetime!
-    fn as_flat(&'a mut self, parent: Option<&'a mut Self>, base_depth: u32) -> Vec<(u32, u32, Option<&'a mut Self>)> {
+    fn as_flat(
+        &'a mut self,
+        parent: Option<&'a mut Self>,
+        base_depth: u32,
+    ) -> Vec<(u32, u32, Option<&'a mut Self>)> {
         match self {
             SnailNum::Val(nr) => vec![(base_depth, *nr, parent)],
             SnailNum::Pair(left, right) => {
                 let some_self = Some(self);
                 let mut res = left.as_flat(some_self, base_depth + 1);
                 {
-                let some_other_self = Some(self);
-                let poop = right.as_flat(some_other_self, base_depth + 1);
-                res.extend(poop);
+                    let some_other_self = Some(self);
+                    let poop = right.as_flat(some_other_self, base_depth + 1);
+                    res.extend(poop);
                 }
                 res
             }
@@ -68,8 +70,7 @@ fn from_flat(flat_data: Vec<(u32, u32)>) -> String {
             for _ in cur_depth..depth {
                 out_chars.push('[');
             }
-        }
-        else if depth < cur_depth {
+        } else if depth < cur_depth {
             for _ in depth..cur_depth {
                 out_chars.push(']');
             }
@@ -89,8 +90,7 @@ fn find_matching_bracket(data: &[char]) -> usize {
     for (idx, ch) in data.iter().enumerate() {
         if ch == &'[' {
             n_open += 1
-        }
-        else if ch == &']' {
+        } else if ch == &']' {
             if n_open == 0 {
                 return idx;
             }
@@ -102,14 +102,12 @@ fn find_matching_bracket(data: &[char]) -> usize {
     panic!("Invalid syntax");
 }
 
-
 /// sv = snail val
 // macro_rules! sv {
 //     ($x:expr) => {
 //         &SnailNum::Val($x)
 //     };
 // }
-
 
 /// Simply syntax sugar for building a snail number pair (of literals, other pairs, or combinations thereof).
 // macro_rules! snail_pair {
@@ -120,14 +118,15 @@ fn find_matching_bracket(data: &[char]) -> usize {
 //     };
 // }
 
-
 fn parse_snail_pair(data: &[char]) -> SnailNum {
     let (left, right_start) = if data[1] == '[' {
         // it's a nested pair
         let matching_idx = find_matching_bracket(&data[2..]) + 2;
-        (parse_snail_pair(&data[1..(matching_idx + 1)]), matching_idx + 1 + 1)
-    }
-    else {
+        (
+            parse_snail_pair(&data[1..(matching_idx + 1)]),
+            matching_idx + 1 + 1,
+        )
+    } else {
         // it's just an integer
         let literal = (data[1] as u32) - ('0' as u32);
         // println!("Found literal: {}", literal);
@@ -139,8 +138,7 @@ fn parse_snail_pair(data: &[char]) -> SnailNum {
         let matching_idx = find_matching_bracket(&data[right_start..]);
         // println!("right - {:?}", &data[right_start..(right_start + matching_idx + 1)]);
         parse_snail_pair(&data[right_start..(right_start + matching_idx + 1)])
-    }
-    else {
+    } else {
         let literal = (data[right_start] as u32) - ('0' as u32);
         // println!("Found literal: {}", literal);
         SnailNum::Val(literal)
@@ -149,7 +147,6 @@ fn parse_snail_pair(data: &[char]) -> SnailNum {
     SnailNum::Pair(Box::new(left), Box::new(right))
     // snail_pair!(&left, &right)
 }
-
 
 // fn decimal(input: &str) -> IResult<&str, &str> {
 //     recognize(
@@ -183,10 +180,7 @@ fn parse_snail_pair(data: &[char]) -> SnailNum {
 //     // }
 // }
 
-
-fn day_18_snailfish() {
-
-}
+fn day_18_snailfish() {}
 
 #[cfg(test)]
 mod tests {
@@ -266,6 +260,4 @@ mod tests {
     */
 }
 
-fn main() {
-
-}
+fn main() {}

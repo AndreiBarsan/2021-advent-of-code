@@ -1,16 +1,15 @@
+use std::collections::HashSet;
 /// 2021 AoC Day 13
 ///
 /// Transparent paper folding - start with a big sheet with random-looking sparse dots, and keep folding along specified
 /// lines until you are through and a specific pattern of big letters emerges.
 use std::fs;
-use std::collections::HashSet;
 use std::str::FromStr;
-
 
 #[derive(Debug)]
 struct Fold {
     dim: String,
-    idx: usize
+    idx: usize,
 }
 
 #[derive(Debug)]
@@ -34,11 +33,16 @@ fn parse_dots(dot_specs: &[&str]) -> HashSet<(usize, usize)> {
 fn parse_folds(fold_specs: &[&str]) -> Vec<Fold> {
     let mut folds = Vec::new();
     for fold_spec in fold_specs {
-        let parts: Vec<&str> = fold_spec.split(" ").collect::<Vec<&str>>()[2usize].split("=").collect();
+        let parts: Vec<&str> = fold_spec.split(" ").collect::<Vec<&str>>()[2usize]
+            .split("=")
+            .collect();
         let lhs = parts[0];
         let rhs = parts[1];
 
-        folds.push(Fold{ dim: lhs.to_string(), idx: usize::from_str(rhs).expect("") });
+        folds.push(Fold {
+            dim: lhs.to_string(),
+            idx: usize::from_str(rhs).expect(""),
+        });
     }
 
     folds
@@ -51,14 +55,12 @@ fn fold_dot(dot: &(usize, usize), fold: &Fold) -> (usize, usize) {
             xx = fold.idx - (xx - fold.idx);
         }
         (xx, yy)
-    }
-    else if fold.dim == "y" {
+    } else if fold.dim == "y" {
         if yy > fold.idx {
             yy = fold.idx - (yy - fold.idx);
         }
         (xx, yy)
-    }
-    else {
+    } else {
         panic!("Invalid fold dimension: {:?}", fold.dim);
     }
 }
@@ -119,7 +121,6 @@ fn day_13_origami() {
         let row_str: String = row.iter().copied().collect();
         println!("{}", &row_str);
     }
-
 }
 
 fn main() {

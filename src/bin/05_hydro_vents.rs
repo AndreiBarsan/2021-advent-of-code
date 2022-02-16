@@ -1,11 +1,10 @@
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::cmp::{max, min};
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::str::FromStr;
-use regex::Regex;
-use lazy_static::lazy_static;
-use std::cmp::{max, min};
-
 
 #[derive(Debug)]
 struct Seafloor {
@@ -18,13 +17,13 @@ struct Seafloor {
 #[derive(Debug)]
 struct Point {
     x: u32,
-    y: u32
+    y: u32,
 }
 
 #[derive(Debug)]
 struct LineSegment {
     start: Point,
-    end: Point
+    end: Point,
 }
 
 impl Seafloor {
@@ -37,7 +36,7 @@ impl Seafloor {
         Seafloor {
             width: width,
             height: height,
-            data: data
+            data: data,
         }
     }
 
@@ -66,7 +65,8 @@ impl Seafloor {
 impl LineSegment {
     fn from_str(spec: String) -> Self {
         lazy_static! {
-            static ref LINE_PARSE_RE: Regex = Regex::new(r"(\d+),(\d+)\s*->\s*(\d+),(\d+)").unwrap();
+            static ref LINE_PARSE_RE: Regex =
+                Regex::new(r"(\d+),(\d+)\s*->\s*(\d+),(\d+)").unwrap();
         }
 
         let caps = LINE_PARSE_RE.captures(&spec).unwrap();
@@ -76,8 +76,8 @@ impl LineSegment {
         let e_y = u32::from_str(&caps[4]).unwrap();
 
         LineSegment {
-            start: Point{x: s_x, y: s_y},
-            end: Point{x: e_x, y: e_y},
+            start: Point { x: s_x, y: s_y },
+            end: Point { x: e_x, y: e_y },
         }
     }
 
@@ -105,27 +105,28 @@ impl LineSegment {
             for ii in 0..len {
                 let new_x = ((self.start.x as i32) + ((ii as i32) * step_x)) as u32;
                 let new_y = ((self.start.y as i32) + ((ii as i32) * step_y)) as u32;
-                ret.push(Point {x: new_x, y: new_y});
+                ret.push(Point { x: new_x, y: new_y });
             }
-
-        }
-        else if self.start.x != self.end.x {
+        } else if self.start.x != self.end.x {
             // horizontal segment
             for xx in min_x..max_x {
-                ret.push(Point {x: xx, y: self.start.y});
+                ret.push(Point {
+                    x: xx,
+                    y: self.start.y,
+                });
             }
-        }
-        else if self.start.y != self.end.y {
+        } else if self.start.y != self.end.y {
             // vertical segment
             for yy in min_y..max_y {
-                ret.push(Point {x: self.start.x, y: yy});
+                ret.push(Point {
+                    x: self.start.x,
+                    y: yy,
+                });
             }
         }
         ret
     }
-
 }
-
 
 fn day_05_hydro_vents() {
     let input_path = Path::new("input/05.txt");
@@ -166,7 +167,9 @@ fn main() {
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }

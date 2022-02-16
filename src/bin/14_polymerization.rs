@@ -1,10 +1,8 @@
+use std::collections::HashMap;
 /// 2021 AoC Day 14
 ///
 /// Polymer "evolution" similar to the lantern fish population, except a little trickier with the counting.
-
 use std::fs;
-use std::collections::HashMap;
-
 
 fn parse_rule(rule_spec: &String) -> (String, char) {
     let parts: Vec<&str> = rule_spec.split(" -> ").collect();
@@ -12,7 +10,6 @@ fn parse_rule(rule_spec: &String) -> (String, char) {
     let rhs = parts[1];
     (lhs.to_string(), rhs.chars().nth(0).unwrap())
 }
-
 
 fn parse_insertion_rules(rule_specs: &[String]) -> HashMap<String, char> {
     rule_specs.iter().map(|spec| parse_rule(spec)).collect()
@@ -22,38 +19,46 @@ fn apply_rule(identifier: &str, insertion_rules: &HashMap<String, char>) -> Vec<
     let first_char = identifier.chars().nth(0).unwrap();
     if let Some(substitution) = insertion_rules.get(identifier) {
         vec![first_char, *substitution]
-    }
-    else {
+    } else {
         vec![first_char]
     }
 }
 
 fn polymerize(polymer_template: &String, insertion_rules: &HashMap<String, char>) -> String {
     if polymer_template.len() < 2 {
-        panic!("Invalid polymer template, length must be at least 2. [polymer_template={:?}]", polymer_template);
+        panic!(
+            "Invalid polymer template, length must be at least 2. [polymer_template={:?}]",
+            polymer_template
+        );
     }
 
     let mut new_chars: Vec<char> = (0..(polymer_template.len() - 1))
-        .flat_map(|idx| apply_rule(&polymer_template[idx..idx+2], insertion_rules))
+        .flat_map(|idx| apply_rule(&polymer_template[idx..idx + 2], insertion_rules))
         .collect();
 
     // Add the last character, as there's no next pattern to trigger its insertion
-    new_chars.push(polymer_template.chars().nth(polymer_template.len() - 1).unwrap());
+    new_chars.push(
+        polymer_template
+            .chars()
+            .nth(polymer_template.len() - 1)
+            .unwrap(),
+    );
 
     // Collect the chars into a convenient String
     new_chars.iter().collect()
 }
 
-
 /// Like 'polymerize', only operating on histogram-based representations of polymers, for vastly improved efficiency.
 fn polymerize_fast(
     polymer_template: &HashMap<String, usize>,
-    insertion_rules: &HashMap<String, char>
-) -> HashMap<String, usize>
-{
+    insertion_rules: &HashMap<String, char>,
+) -> HashMap<String, usize> {
     let mut new_polymer: HashMap<String, usize> = HashMap::new();
     if polymer_template.len() < 1 {
-        panic!("Invalid polymer template, length must be at least 1 pair. [polymer_template={:?}]", polymer_template);
+        panic!(
+            "Invalid polymer template, length must be at least 1 pair. [polymer_template={:?}]",
+            polymer_template
+        );
     }
 
     for (pair, initial_count) in polymer_template {
@@ -68,8 +73,7 @@ fn polymerize_fast(
 
             *new_polymer.entry(a_str.to_string()).or_insert(0usize) += initial_count;
             *new_polymer.entry(b_str.to_string()).or_insert(0usize) += initial_count;
-        }
-        else {
+        } else {
             *new_polymer.entry(pair.to_string()).or_insert(0usize) += initial_count;
         }
     }
@@ -123,7 +127,6 @@ fn letter_stats_hist(original: &String, polymer: &HashMap<String, usize>) -> Has
     stats
 }
 
-
 /// Returns the difference between the most frequent and the least frequent.
 fn part_1_code(stats: &HashMap<char, usize>) -> usize {
     let mut stats_vec: Vec<&usize> = stats.iter().map(|(_, v)| v).collect();
@@ -138,8 +141,11 @@ fn day_14_polymerization() {
     // let input_fname = "input/14-demo.txt";
 
     // Input data processing
-    let data: Vec<String> = fs::read_to_string(input_fname).expect("Unable to read file.")
-        .split("\n").map(|x| x.to_string()).collect();
+    let data: Vec<String> = fs::read_to_string(input_fname)
+        .expect("Unable to read file.")
+        .split("\n")
+        .map(|x| x.to_string())
+        .collect();
     let base_polymer = data[0].to_string();
     let insertion_rule_specs = &data[2..];
     let insertion_rules_map = parse_insertion_rules(insertion_rule_specs);
@@ -161,7 +167,7 @@ fn day_14_polymerization() {
     let mut poly_hist: HashMap<String, usize> = HashMap::new();
     let mut tokens: Vec<String> = Vec::new();
     for idx in 0..(base_polymer.len() - 1) {
-        let identifier = &base_polymer[idx..idx+2];
+        let identifier = &base_polymer[idx..idx + 2];
         *poly_hist.entry(identifier.to_string()).or_insert(0usize) += 1;
         tokens.push(identifier.to_string());
     }
@@ -176,7 +182,6 @@ fn day_14_polymerization() {
     let part_2_result = part_1_code(&poly_hist_stats);
     println!("Part 2 solution: {}", part_2_result);
 }
-
 
 fn main() {
     day_14_polymerization();

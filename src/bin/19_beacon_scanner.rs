@@ -6,22 +6,20 @@
 /// On the flip side, I learned several new things about Rust:
 ///  - operator overloading
 ///  - the basics of nalgebra
-
 extern crate nalgebra as na;
 
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::ops;
 use std::str::FromStr;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::collections::BinaryHeap;
-use std::cmp::Ordering;
-use regex::Regex;
-use lazy_static::lazy_static;
 
-use na::geometry::{Rotation3, Transform3, Translation3, IsometryMatrix3};
+use na::geometry::{IsometryMatrix3, Rotation3, Transform3, Translation3};
 use na::{Matrix4, Point3, Vector3};
-
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Point3d {
@@ -68,13 +66,11 @@ impl ops::Sub<Point3d> for Point3d {
     }
 }
 
-
 #[derive(Debug)]
 enum Spec {
     NewScanner(i64),
-    NewBeacon(Point3d)
+    NewBeacon(Point3d),
 }
-
 
 #[derive(Debug)]
 struct Triangle3d {
@@ -91,7 +87,7 @@ impl Triangle3d {
         let bc = self.b.dist(&self.c);
         let ac = self.a.dist(&self.c);
 
-        let sp = 0.5 *(ab + bc + ac);
+        let sp = 0.5 * (ab + bc + ac);
 
         (sp * (sp - ab) * (sp - ac) * (sp - bc)).sqrt()
     }
@@ -155,7 +151,7 @@ impl Triangle3d {
         Triangle3d {
             a: a_rot,
             b: b_rot,
-            c: c_rot
+            c: c_rot,
         }
     }
 
@@ -167,14 +163,12 @@ impl Triangle3d {
 
 fn parse_beacon(line_str: &str) -> Spec {
     let parts: Vec<&str> = line_str.split(",").collect();
-    Spec::NewBeacon(Point3d{
+    Spec::NewBeacon(Point3d {
         x: i64::from_str(&parts[0]).unwrap(),
         y: i64::from_str(&parts[1]).unwrap(),
         z: i64::from_str(&parts[2]).unwrap(),
     })
 }
-
-
 
 fn str_to_coords_or_scanner(line_str: &str) -> Spec {
     lazy_static! {
@@ -183,15 +177,14 @@ fn str_to_coords_or_scanner(line_str: &str) -> Spec {
 
     match SCANNER_START_RE.captures(&line_str) {
         Some(captures) => Spec::NewScanner(i64::from_str(&captures[1]).unwrap()),
-        None => parse_beacon(&line_str)
+        None => parse_beacon(&line_str),
     }
 }
-
 
 #[derive(Debug, Copy, Clone)]
 struct Candidate {
     cost: f64,
-    point: Point3d
+    point: Point3d,
 }
 
 impl PartialEq for Candidate {
@@ -203,15 +196,12 @@ impl PartialEq for Candidate {
 impl Eq for Candidate {}
 
 impl Ord for Candidate {
-
     fn cmp(&self, other: &Self) -> Ordering {
         if self.cost > other.cost {
             Ordering::Greater
-        }
-        else if self.cost < other.cost {
+        } else if self.cost < other.cost {
             Ordering::Less
-        }
-        else {
+        } else {
             Ordering::Equal
         }
     }
@@ -222,7 +212,6 @@ impl PartialOrd for Candidate {
         Some(self.cmp(other))
     }
 }
-
 
 /// Extracts a dynamic number k_i of keypoints and float fingerprints from the list points.
 fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> {
@@ -239,13 +228,16 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
         let mut knn = Vec::new();
         let p = readings[p_idx];
 
-        for q_idx in p_idx+1..readings.len() {
+        for q_idx in p_idx + 1..readings.len() {
             if p_idx == q_idx {
                 continue;
             }
 
             let q = readings[q_idx];
-            neighbors.push(Candidate {cost: -1f64 * p.dist(&q), point: q.clone()});
+            neighbors.push(Candidate {
+                cost: -1f64 * p.dist(&q),
+                point: q.clone(),
+            });
         }
 
         // XXX(andrei): Check that the neighbors are getting popped in the right order...
@@ -264,12 +256,19 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
         let actual_k = knn.len();
 
         if actual_k > 0 {
-            for i in 0..(actual_k-1) {
-                for j in (i+1)..actual_k {
-                    let tri_tmp = Triangle3d{ a: p, b: knn[i], c: knn[j] };
+            for i in 0..(actual_k - 1) {
+                for j in (i + 1)..actual_k {
+                    let tri_tmp = Triangle3d {
+                        a: p,
+                        b: knn[i],
+                        c: knn[j],
+                    };
 
                     // Skip isosceles triangles as they could be ambiguous when matching
-                    if (tri_tmp.ab() - tri_tmp.ac()).norm() < 1e-5  || (tri_tmp.ab() - tri_tmp.bc()).norm() < 1e-5 || (tri_tmp.ac() - tri_tmp.ab()).norm() < 1e-5 {
+                    if (tri_tmp.ab() - tri_tmp.ac()).norm() < 1e-5
+                        || (tri_tmp.ab() - tri_tmp.bc()).norm() < 1e-5
+                        || (tri_tmp.ac() - tri_tmp.ab()).norm() < 1e-5
+                    {
                         continue;
                     }
                     // Debug code
@@ -279,17 +278,33 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
 
                     // Name points consistently using the largest angle as a hint
                     let tri = {
-                        if tri_tmp.a_angle_rad() > tri_tmp.b_angle_rad() && tri_tmp.a_angle_rad() > tri_tmp.c_angle_rad() {
-                            Triangle3d{ a: p, b: knn[i], c: knn[j] }
-                        }
-                        else if tri_tmp.b_angle_rad() > tri_tmp.a_angle_rad() && tri_tmp.b_angle_rad() > tri_tmp.c_angle_rad() {
-                            Triangle3d{ a: knn[i], b: p, c: knn[j] }
-                        }
-                        else {
-                            if ! (tri_tmp.c_angle_rad() > tri_tmp.a_angle_rad() && tri_tmp.c_angle_rad() > tri_tmp.b_angle_rad()) {
+                        if tri_tmp.a_angle_rad() > tri_tmp.b_angle_rad()
+                            && tri_tmp.a_angle_rad() > tri_tmp.c_angle_rad()
+                        {
+                            Triangle3d {
+                                a: p,
+                                b: knn[i],
+                                c: knn[j],
+                            }
+                        } else if tri_tmp.b_angle_rad() > tri_tmp.a_angle_rad()
+                            && tri_tmp.b_angle_rad() > tri_tmp.c_angle_rad()
+                        {
+                            Triangle3d {
+                                a: knn[i],
+                                b: p,
+                                c: knn[j],
+                            }
+                        } else {
+                            if !(tri_tmp.c_angle_rad() > tri_tmp.a_angle_rad()
+                                && tri_tmp.c_angle_rad() > tri_tmp.b_angle_rad())
+                            {
                                 panic!("Inconsistent angles. Math likely incorrect.");
                             }
-                            Triangle3d{ a: knn[i], b: knn[j], c: p }
+                            Triangle3d {
+                                a: knn[i],
+                                b: knn[j],
+                                c: p,
+                            }
                         }
                     };
 
@@ -302,7 +317,6 @@ fn extract_keypoint_features(readings: &Vec<Point3d>) -> Vec<(Triangle3d, f64)> 
 
     results
 }
-
 
 /// Returns the (roll, pitch, yaw) that rotate triangle B to match triangle A.
 fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<(f64, f64, f64)> {
@@ -328,10 +342,12 @@ fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<(f64, 
     None
 }
 
-
 /// Returns the transform from B's to A's frame.
-fn match_translation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d, initial_rpy: (f64, f64, f64)) -> Option<Point3d> {
-
+fn match_translation_naive(
+    tri_a: &Triangle3d,
+    tri_b: &Triangle3d,
+    initial_rpy: (f64, f64, f64),
+) -> Option<Point3d> {
     let rot = Rotation3::from_euler_angles(initial_rpy.0, initial_rpy.1, initial_rpy.2);
     let r_tri_b = tri_b.rotated(&rot);
 
@@ -349,29 +365,31 @@ fn match_translation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d, initial_rpy: 
     Some(a_off)
 }
 
-
-
-
-
 /// Finds the SE(3) relative transform between two triangles, searching over fixed rotation candidates.
 ///
 /// Assumes rotations are multiples of pi/2 and triangles are not equilateral or isosceles.
-fn match_triangles_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<((f64, f64, f64), Point3d)> {
+fn match_triangles_naive(
+    tri_a: &Triangle3d,
+    tri_b: &Triangle3d,
+) -> Option<((f64, f64, f64), Point3d)> {
     let rot = match_rotation_naive(tri_a, tri_b);
 
     // TODO(andrei): Clean up this ugly "functional" code.
-    let rot_trans = rot.map(|rpy| match_translation_naive(tri_a, tri_b, rpy)).flatten();
+    let rot_trans = rot
+        .map(|rpy| match_translation_naive(tri_a, tri_b, rpy))
+        .flatten();
     match rot_trans {
         Some(trans) => Some((rot.unwrap(), trans)),
-        None => None
+        None => None,
     }
 }
 
-
-
-fn match_features_and_solve_poses(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3d, f64)>>, n_scanners: i64) -> (
+fn match_features_and_solve_poses(
+    scanner_kp_feats: &HashMap<i64, Vec<(Triangle3d, f64)>>,
+    n_scanners: i64,
+) -> (
     HashMap<(i64, i64), ((f64, f64, f64), Point3d)>,
-    Vec<Vec<i64>>
+    Vec<Vec<i64>>,
 ) {
     // Brute-force matching since the number of scanners is <30 and each will have something like 5 triangles.
     let mut pose_graph: HashMap<(i64, i64), ((f64, f64, f64), Point3d)> = HashMap::new();
@@ -380,7 +398,7 @@ fn match_features_and_solve_poses(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3
     // Keep track of the pose from scanner K to 0.
     let mut scanner_to_0: HashMap<i64, ((f64, f64, f64), Point3d)> = HashMap::new();
     // Identity transform from 0 to itself.
-    scanner_to_0.insert(0, ((0f64, 0f64, 0f64), Point3d { x: 0, y: 0, z: 0}));
+    scanner_to_0.insert(0, ((0f64, 0f64, 0f64), Point3d { x: 0, y: 0, z: 0 }));
 
     // TODO(andrei): Rewrite this functionally.
     for scan_a in 0..n_scanners {
@@ -405,10 +423,9 @@ fn match_features_and_solve_poses(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3
                                 adj[scan_a as usize][scan_b as usize] = 1;
                                 adj[scan_b as usize][scan_a as usize] = 1;
                                 found_tform = true;
-                                break;   // disabled for debugging
+                                break; // disabled for debugging
                             }
-                            None => {
-                            }
+                            None => {}
                         }
                     }
                 }
@@ -416,8 +433,7 @@ fn match_features_and_solve_poses(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3
 
             if found_tform {
                 // ...
-            }
-            else {
+            } else {
                 println!("ooh wee, could not find a transform...")
             }
         }
@@ -427,7 +443,6 @@ fn match_features_and_solve_poses(scanner_kp_feats: &HashMap<i64, Vec<(Triangle3
 
     (pose_graph, adj)
 }
-
 
 fn transform_point(p: &Point3d, transform: &IsometryMatrix3<f64>) -> Point3d {
     let p = Point3::new(p.x as f64, p.y as f64, p.z as f64);
@@ -439,11 +454,12 @@ fn transform_point(p: &Point3d, transform: &IsometryMatrix3<f64>) -> Point3d {
     }
 }
 
-
 fn transform_points(input: &Vec<Point3d>, transform: &IsometryMatrix3<f64>) -> Vec<Point3d> {
-    input.into_iter().map(|p3d| transform_point(p3d, &transform)).collect()
+    input
+        .into_iter()
+        .map(|p3d| transform_point(p3d, &transform))
+        .collect()
 }
-
 
 fn align_all_points(
     scanners: &HashMap<i64, Vec<Point3d>>,
@@ -463,11 +479,15 @@ fn align_all_points(
         let mut current_pts = scanners[&scanner].clone();
 
         match path_to_zero {
-            Some(path) =>  {
+            Some(path) => {
                 for path_idx in path.windows(2) {
                     println!("{:?}", path_idx);
                     let pose_raw = pose_graph[&(path_idx[1] as i64, path_idx[0] as i64)];
-                    let tra = Translation3::new(pose_raw.1.x as f64, pose_raw.1.y as f64, pose_raw.1.z as f64);
+                    let tra = Translation3::new(
+                        pose_raw.1.x as f64,
+                        pose_raw.1.y as f64,
+                        pose_raw.1.z as f64,
+                    );
                     // let tra = Translation3::new((pose_raw.1.x as f64) * -1.0f64, (pose_raw.1.y as f64) * -1.0f64, (pose_raw.1.z as f64) * -1.0f64);
 
                     let (roll, pitch, yaw) = pose_raw.0;
@@ -487,8 +507,8 @@ fn align_all_points(
                     // if path_idx[0] == 3 {
                     // }
                 }
-            },
-            None => println!("Warning: no path found!")
+            }
+            None => println!("Warning: no path found!"),
         }
 
         // if scanner == 1 {
@@ -506,7 +526,12 @@ fn align_all_points(
                 }
             }
         }
-        println!("scanner {}, {}/{} overlaps w/ 0", scanner, overlaps, current_pts.len());
+        println!(
+            "scanner {}, {}/{} overlaps w/ 0",
+            scanner,
+            overlaps,
+            current_pts.len()
+        );
 
         // println!("{:?}", current_pts);
         all_points.append(&mut current_pts);
@@ -523,9 +548,7 @@ fn align_all_points(
         all_pts_set.insert(*pt);
     }
     println!("{}", all_pts_set.len());
-
 }
-
 
 fn bfs(path: Vec<usize>, adj: &Vec<Vec<i64>>, n_scanners: usize) -> Option<Vec<usize>> {
     let cur = path[path.len() - 1];
@@ -534,7 +557,7 @@ fn bfs(path: Vec<usize>, adj: &Vec<Vec<i64>>, n_scanners: usize) -> Option<Vec<u
     }
 
     for n in 0..n_scanners {
-        if adj[n][cur] == 1 && ! path.contains(&n) {
+        if adj[n][cur] == 1 && !path.contains(&n) {
             let mut new_path: Vec<usize> = path.clone();
             new_path.push(n);
 
@@ -548,12 +571,15 @@ fn bfs(path: Vec<usize>, adj: &Vec<Vec<i64>>, n_scanners: usize) -> Option<Vec<u
     None
 }
 
-
 fn day_19_beacon_scanner() {
     // let input_fname = "input/19-demo.txt";
     let input_fname = "input/19.txt";
-    let scanner_beacons: Vec<Spec> = fs::read_to_string(input_fname).expect("Unable to read file.")
-        .split("\n").filter(|x| x.len() > 0).map(|x| str_to_coords_or_scanner(x)).collect();
+    let scanner_beacons: Vec<Spec> = fs::read_to_string(input_fname)
+        .expect("Unable to read file.")
+        .split("\n")
+        .filter(|x| x.len() > 0)
+        .map(|x| str_to_coords_or_scanner(x))
+        .collect();
 
     // println!("{:?}", scanner_beacons);
 
@@ -563,17 +589,22 @@ fn day_19_beacon_scanner() {
         match cmd {
             Spec::NewScanner(scanner_id) => {
                 cur_scanner = scanner_id;
-            },
-            Spec::NewBeacon(point) => scanners.entry(cur_scanner).or_insert(Vec::new()).push(point),
+            }
+            Spec::NewBeacon(point) => scanners
+                .entry(cur_scanner)
+                .or_insert(Vec::new())
+                .push(point),
         }
     }
 
-    let scanner_keypoint_features: HashMap<i64, Vec<(Triangle3d, f64)>> = scanners.iter()
+    let scanner_keypoint_features: HashMap<i64, Vec<(Triangle3d, f64)>> = scanners
+        .iter()
         .map(|(k, v)| (*k, extract_keypoint_features(v)))
         .collect();
 
     // println!("Features for scanner #2: {:?}", scanner_keypoint_features[&2]);
-    let (pose_graph, adj) = match_features_and_solve_poses(&scanner_keypoint_features, scanners.len() as i64);
+    let (pose_graph, adj) =
+        match_features_and_solve_poses(&scanner_keypoint_features, scanners.len() as i64);
 
     align_all_points(&scanners, &pose_graph, &adj, scanners.len() as i64);
 }

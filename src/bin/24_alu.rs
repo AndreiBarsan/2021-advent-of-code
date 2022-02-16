@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 /// 2021 AoC Day 24: Arithmetic Logic Unit
 ///
 /// Find the largest and smallest 14-digit values which make a custom assembly program output zero.
@@ -15,23 +16,20 @@
 /// Looking at hints from other people on Reddit, it seems it may be beneficial to start from the end. The 14-chunk
 /// observation is definitely 100% a correct insight. I also wonder whether we can chunk the program differently, so as
 /// to exploit the modulo operations better. There's probably also a higher-level meaning to the 'z' register.
-
-
 use std::fs;
-use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Debug, Eq, PartialEq)]
 enum Expr {
     LITERAL(i64),
-    REG(char)
+    REG(char),
 }
 
 impl Expr {
     fn from(input: &str) -> Expr {
         match i64::from_str(input) {
             Ok(val) => Expr::LITERAL(val),
-            Err(e) => Expr::REG(input.chars().nth(0).unwrap())
+            Err(e) => Expr::REG(input.chars().nth(0).unwrap()),
         }
     }
 }
@@ -43,7 +41,7 @@ enum ALUInstruction {
     MUL(Expr, Expr),
     DIV(Expr, Expr),
     MOD(Expr, Expr),
-    EQL(Expr, Expr)
+    EQL(Expr, Expr),
 }
 
 fn parse_alu_instruction(raw: &str) -> ALUInstruction {
@@ -55,11 +53,17 @@ fn parse_alu_instruction(raw: &str) -> ALUInstruction {
         "div" => ALUInstruction::DIV(Expr::from(parts[1]), Expr::from(parts[2])),
         "mod" => ALUInstruction::MOD(Expr::from(parts[1]), Expr::from(parts[2])),
         "eql" => ALUInstruction::EQL(Expr::from(parts[1]), Expr::from(parts[2])),
-        _ => panic!("Invalid instruction name: {}", parts[0])
+        _ => panic!("Invalid instruction name: {}", parts[0]),
     }
 }
 
-fn execute(instructions: &Vec<ALUInstruction>, input: &Vec<i64>, initial_z: i64, start_instr: usize, end_instr: usize) -> i64 {
+fn execute(
+    instructions: &Vec<ALUInstruction>,
+    input: &Vec<i64>,
+    initial_z: i64,
+    start_instr: usize,
+    end_instr: usize,
+) -> i64 {
     // TODO(andrei): If needed, refactor this into a "context" and pass it around to separate functions
     // each implementing an operation.
     let mut reg: HashMap<char, i64> = HashMap::new();
@@ -88,7 +92,7 @@ fn execute(instructions: &Vec<ALUInstruction>, input: &Vec<i64>, initial_z: i64,
                 // println!("z = {:?}", reg[&'z']);
                 // println!("{:?}", reg);
                 // }
-            },
+            }
             ALUInstruction::ADD(Expr::REG(target_reg), Expr::REG(source_reg)) => {
                 *reg.entry(*target_reg).or_insert(0i64) += reg[source_reg];
             }
@@ -125,9 +129,8 @@ fn execute(instructions: &Vec<ALUInstruction>, input: &Vec<i64>, initial_z: i64,
                 let result: bool = reg[target_reg] == *lit;
                 *reg.entry(*target_reg).or_insert(0i64) = i64::from(result);
             }
-            _ => panic!("Invalid instruction format: {:?}", inst)
+            _ => panic!("Invalid instruction format: {:?}", inst),
         }
-
     }
 
     reg[&'z']
@@ -156,7 +159,7 @@ fn get_program_spec() -> Vec<(i64, i64, i64)> {
     // 1  = peek
     // 26 = pop
     vec![
-        (1, 14, 12),    // d00
+        (1, 14, 12), // d00
         (1, 10, 9),
         (1, 13, 8),
         (26, -8, 3),
@@ -166,10 +169,10 @@ fn get_program_spec() -> Vec<(i64, i64, i64)> {
         (26, -11, 13),
         (1, 14, 3),
         (26, -1, 10),
-        (26, -8, 10),   // d10
-        (26, -5, 14),   // d11
-        (26, -16, 6),   // d12
-        (26, -6, 5),    // d13
+        (26, -8, 10), // d10
+        (26, -5, 14), // d11
+        (26, -16, 6), // d12
+        (26, -6, 5),  // d13
     ]
 }
 
@@ -180,8 +183,8 @@ fn digit_block(digit: i64, z_in: i64, a: i64, b: i64, c: i64) -> i64 {
     // POP into x
     // end
     // x += b
-    let mut x = z_in % 26 + b;      // b is a possibly negative constant
-    let mut z = z_in / a;       // a is either 1 or 26
+    let mut x = z_in % 26 + b; // b is a possibly negative constant
+    let mut z = z_in / a; // a is either 1 or 26
 
     if x != digit {
         // PUSH (digit + c)
@@ -213,47 +216,25 @@ fn solve_version_c() -> (Option<i64>, Option<i64>) {
 
     // This can be solved manually based on the invariants from above, which, in turn, are inferred from the assembly.
     let digits_max = vec![
-        3,
-        9,
-        9,
-        9,
-        9,
-        6,
-        9,
-        8,
-        7,
-        9,
-        9,      // d10
-        4,      // d11
-        2,      // d12
-        9,      // d13
+        3, 9, 9, 9, 9, 6, 9, 8, 7, 9, 9, // d10
+        4, // d11
+        2, // d12
+        9, // d13
     ];
     let digits_min = vec![
-        1,
-        8,
-        1,
-        1,
-        6,
-        1,
-        2,
-        1,
-        1,
-        3,
-        4,      // d10
-        1,      // d11
-        1,      // d12
-        7,      // d13
+        1, 8, 1, 1, 6, 1, 2, 1, 1, 3, 4, // d10
+        1, // d11
+        1, // d12
+        7, // d13
     ];
 
     (Some(vec_to_num(&digits_max)), Some(vec_to_num(&digits_min)))
 }
 
-
 /// Incomplete optimized modification of solution A which attempts to start from the end.
 /// Not currently functional - I gave up since this did not seem promising enough in terms of speed, and instead focused
 /// more on reverse-engineering the assembly for formulating version C.
 fn solve_version_b(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>) {
-
     let mut target_zs: HashMap<i64, i64> = HashMap::new();
     target_zs.insert((0i64), (0i64));
 
@@ -264,21 +245,20 @@ fn solve_version_b(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
         let mul = 10i64.pow(13u32 - (digit_idx as u32));
         println!("Digit {}", digit_idx);
         for x in 1..10 {
-            let mut digits = vec!(x);
+            let mut digits = vec![x];
             let instructions_per_digit = 18usize;
             let start_instruction = instructions_per_digit * digit_idx;
             let end_instruction = instructions_per_digit * (digit_idx + 1usize);
 
             let candidates = if digit_idx == 0 {
                 0..1
-            }
-            else {
+            } else {
                 0..((target_zs.len() + 1) * 200)
             };
 
             for candidate_z in candidates {
                 // let classic_z_val = execute(&commands, &digits, candidate_z, start_instruction, end_instruction);
-                let z_val = exec_spec(&digits, &vec!(spec[digit_idx]), candidate_z as i64);
+                let z_val = exec_spec(&digits, &vec![spec[digit_idx]], candidate_z as i64);
                 // println!("{}, {}", z_val, rust_z_val);
                 // assert_eq!(z_val, rust_z_val);
 
@@ -287,7 +267,6 @@ fn solve_version_b(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
                     new_target_zs.insert(candidate_z as i64, x * mul + target_zs[&z_val]);
                 }
             }
-
         }
         println!("Target Zs contains: {}", new_target_zs.len());
         target_zs = new_target_zs;
@@ -301,10 +280,8 @@ fn solve_version_b(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
         // }
     }
 
-
     (Some(-1i64), Some(-1i64))
 }
-
 
 /// The first attempt to solve the problem - using per-module caching.
 ///
@@ -335,7 +312,13 @@ fn solve_version_a(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
             let mut z_idx = 0i64;
 
             for (initial_z, max_input) in &z_to_max_input {
-                let z_val = execute(&commands, &digits, *initial_z, start_instruction,  end_instruction);
+                let z_val = execute(
+                    &commands,
+                    &digits,
+                    *initial_z,
+                    start_instruction,
+                    end_instruction,
+                );
                 // Heuristic to limit the search space when we know we can't possibly 'div' z enough to reach zero by
                 // the end.
                 if digit_idx > 8 && z_val > (26 * 26 * 26 * 26) {
@@ -361,19 +344,20 @@ fn solve_version_a(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
             let start_instruction = instructions_per_digit * digit_idx;
             let end_instruction = instructions_per_digit * (digit_idx + 1usize);
             for (initial_z, min_input) in &z_to_min_input {
-                let z_val = execute(&commands, &digits, *initial_z, start_instruction,  end_instruction);
+                let z_val = execute(
+                    &commands,
+                    &digits,
+                    *initial_z,
+                    start_instruction,
+                    end_instruction,
+                );
                 // See previous loop for heuristic explanation.
                 if digit_idx > 8 && z_val > (26 * 26 * 26 * 26) {
                     continue;
                 }
 
                 // Always keep the smallest value, which is done by the 'rev()' in how we visit the digits (I think).
-                let aux = if min_input == &-1 {
-                    0i64
-                }
-                else {
-                    *min_input
-                };
+                let aux = if min_input == &-1 { 0i64 } else { *min_input };
                 new_z_to_min_input.insert(z_val, aux * 10 + x);
 
                 z_idx += 1;
@@ -385,8 +369,14 @@ fn solve_version_a(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
             }
         }
 
-        println!("z_val_max lookup has {} initial z's.", new_z_to_max_input.len());
-        println!("z_val_min lookup has {} initial z's.", new_z_to_min_input.len());
+        println!(
+            "z_val_max lookup has {} initial z's.",
+            new_z_to_max_input.len()
+        );
+        println!(
+            "z_val_min lookup has {} initial z's.",
+            new_z_to_min_input.len()
+        );
         z_to_max_input = new_z_to_max_input;
         z_to_min_input = new_z_to_min_input;
     }
@@ -398,7 +388,6 @@ fn solve_version_a(commands: &Vec<ALUInstruction>) -> (Option<i64>, Option<i64>)
     (part_one_sol, part_two_sol)
 }
 
-
 fn exec_spec(digits: &Vec<i64>, spec: &Vec<(i64, i64, i64)>, start_z: i64) -> i64 {
     let mut z = start_z;
     for i in 0..spec.len() {
@@ -407,7 +396,6 @@ fn exec_spec(digits: &Vec<i64>, spec: &Vec<(i64, i64, i64)>, start_z: i64) -> i6
     }
     z
 }
-
 
 fn main() {
     let input_fname = "input/24.txt";
@@ -425,8 +413,7 @@ fn main() {
     println!("Part One:");
     if part_one_opt.is_some() {
         println!("Solution to part I found: {}", part_one_opt.unwrap());
-    }
-    else {
+    } else {
         println!("Could not find a solution!!!");
     }
 
@@ -435,6 +422,6 @@ fn main() {
         Some(solution) => {
             println!("Solution to part II found: {}", part_two_opt.unwrap())
         }
-        None =>  println!("Could not find a solution!!!")
+        None => println!("Could not find a solution!!!"),
     };
 }

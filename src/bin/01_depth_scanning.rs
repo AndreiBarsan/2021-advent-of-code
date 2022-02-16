@@ -1,9 +1,8 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::str::FromStr;
-use std::collections::HashMap;
-
 
 fn main() {
     // Note: This path is relative to the repo root
@@ -15,7 +14,7 @@ fn main() {
 
     let mut nrs: i32 = 0;
     let mut q: [i32; 3] = [0i32, 0i32, 0i32];
-    let mut prev_sum: i32= 0;
+    let mut prev_sum: i32 = 0;
 
     if let Ok(lines) = read_lines(input_path) {
         for maybe_line in lines {
@@ -39,7 +38,6 @@ fn main() {
                     if cur_sum > prev_sum {
                         inc_sum += 1;
                     }
-
                 }
                 prev_sum = cur_sum;
             }
@@ -50,9 +48,10 @@ fn main() {
     println!("Final result {}", inc_sum);
 }
 
-
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
