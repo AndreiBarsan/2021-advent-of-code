@@ -2,11 +2,9 @@
 
 use std::fs;
 
-
 const EAST: char = '>';
 const SOUTH: char = 'v';
 const EMPTY: char = '.';
-
 
 /// State update which applies the rules of the sea cucumber simulation. Returns the new state and # of moved cucumbers.
 fn step(cucumbers: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize) {
@@ -15,6 +13,7 @@ fn step(cucumbers: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize) {
     let mut moved_east: usize = 0;
     let mut moved_south: usize = 0;
 
+    // NOTE(andrei): I can pre-allocate the intermediate buffers if further speed is necessary.
     let mut next_state: Vec<Vec<char>> = Vec::new();
     for _ in 0..n_rows {
         next_state.push(vec![EMPTY; n_cols]);

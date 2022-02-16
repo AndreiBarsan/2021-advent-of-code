@@ -1,6 +1,7 @@
 /// 2021 AoC Day 14
 ///
 /// Polymer "evolution" similar to the lantern fish population, except a little trickier with the counting.
+
 use std::fs;
 use std::collections::HashMap;
 
