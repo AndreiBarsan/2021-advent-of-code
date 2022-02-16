@@ -9,7 +9,6 @@ const MAX_AGE: usize = SPAWN_INTERVAL + NEW_FISH_OFFSET;
 
 /// Simulates the initial state for the given number of step and returns the final number of fish.
 fn simulate(initial_state: &Vec<usize>, max_sim_steps: usize) -> usize {
-
     let mut fish_by_age: [usize; MAX_AGE + 1] = [0; MAX_AGE + 1];
     for &fish in initial_state {
         fish_by_age[fish] += 1;
@@ -44,7 +43,10 @@ fn day_06_lanternfish() {
         }
     }
 
-    let initial_state: Vec<usize> = data.split(",").map(|x| usize::from_str(x).unwrap()).collect();
+    let initial_state: Vec<usize> = data
+        .split(",")
+        .map(|x| usize::from_str(x).unwrap())
+        .collect();
 
     let n_fish_part_1 = simulate(&initial_state, 80usize);
     println!("Fish after {} days: {}", 80usize, n_fish_part_1);
@@ -79,14 +81,14 @@ fn day_06_lanternfish() {
     // println!("Fish after {} days: {}", max_sim_steps, state.len());
 }
 
-
 fn main() {
     day_06_lanternfish();
 }
 
-
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }

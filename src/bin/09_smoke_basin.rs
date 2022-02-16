@@ -36,7 +36,6 @@ fn find_low_points(height: &Vec<Vec<u32>>) -> Vec<(usize, usize)> {
         }
     }
 
-
     low_points
 }
 
@@ -63,8 +62,7 @@ fn find_basins(original_height: &Vec<Vec<u32>>, cliff_id: u32) -> Vec<usize> {
             queue.push((row, col));
             height[row as usize][col as usize] = marker;
 
-
-            while ! queue.is_empty() {
+            while !queue.is_empty() {
                 let (c_row, c_col) = queue.pop().unwrap();
 
                 let offsets: Vec<(i32, i32)> = vec![(-1, 0), (1, 0), (0, -1), (0, 1)];
@@ -117,7 +115,10 @@ fn main() {
     let mut basin_sizes = find_basins(&height, 9u32);
     basin_sizes.sort_by(|a, b| b.partial_cmp(a).unwrap());
     if basin_sizes.len() < 3 {
-        panic!("Insufficient basins found! Need at least 3 but found {}.", basin_sizes.len());
+        panic!(
+            "Insufficient basins found! Need at least 3 but found {}.",
+            basin_sizes.len()
+        );
     }
     println!("Part 2:");
     println!("Found {} basins.", basin_sizes.len());

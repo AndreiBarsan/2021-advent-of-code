@@ -49,7 +49,11 @@ fn sorted_string(input: &str) -> String {
 }
 
 fn decode(input: &str, mapping: &HashMap<char, char>) -> Vec<char> {
-    let mut result: Vec<char> = input.chars().map(|x| mapping.get(&x).unwrap()).copied().collect();
+    let mut result: Vec<char> = input
+        .chars()
+        .map(|x| mapping.get(&x).unwrap())
+        .copied()
+        .collect();
     result.sort();
     result
 }
@@ -65,7 +69,7 @@ fn readout(code: &Vec<char>) -> u32 {
         (String::from("abdefg"), 6u32),
         (String::from("acf"), 7u32),
         (String::from("abcdefg"), 8u32),
-        (String::from("abcdfg"), 9u32)
+        (String::from("abcdfg"), 9u32),
     ]);
 
     let code_str: String = code.iter().copied().collect();
@@ -78,7 +82,9 @@ fn readout(code: &Vec<char>) -> u32 {
 fn part_2_decoding(input: &Vec<&str>) -> HashMap<char, char> {
     let mut code_by_length_uniq: HashMap<usize, HashSet<String>> = HashMap::new();
     for code in input {
-        let my_vec = code_by_length_uniq.entry(code.len()).or_insert(HashSet::new());
+        let my_vec = code_by_length_uniq
+            .entry(code.len())
+            .or_insert(HashSet::new());
         // I *think* the 'to_string' here is meant to make a copy.
         (*my_vec).insert(sorted_string(code));
     }
@@ -154,7 +160,6 @@ fn part_2_decoding(input: &Vec<&str>) -> HashMap<char, char> {
             let aux_reversed: Vec<char> = (&chars_in_six - &chars_in_current).into_iter().collect();
             e = aux_reversed[0];
             chars_in_five = chars_in_current;
-
         }
     }
     if e == 'X' {
@@ -165,14 +170,20 @@ fn part_2_decoding(input: &Vec<&str>) -> HashMap<char, char> {
     // in common is 'b'. The other non-common segment from the first tuple is 'd'. We can also infer 'g'.
     //
     // Find 0 out of 0/6/9 by containing both e and c
-    let only_zero: Vec<String> = code_by_length[&6usize].iter().map(|x| x.to_string())
-        .filter(|code| code.contains(e) && code.contains(c)).collect();
+    let only_zero: Vec<String> = code_by_length[&6usize]
+        .iter()
+        .map(|x| x.to_string())
+        .filter(|code| code.contains(e) && code.contains(c))
+        .collect();
 
     if only_zero.len() != 1 {
         panic!("Could not infer zero!");
     }
     let chars_in_zero: HashSet<char> = only_zero[0].chars().collect();
-    let mut b_and_g: Vec<char> = (&chars_in_zero - &chars_in_seven).into_iter().filter(|x| x != &e).collect();
+    let mut b_and_g: Vec<char> = (&chars_in_zero - &chars_in_seven)
+        .into_iter()
+        .filter(|x| x != &e)
+        .collect();
     if b_and_g.len() != 2 {
         panic!("");
     }
@@ -188,24 +199,19 @@ fn part_2_decoding(input: &Vec<&str>) -> HashMap<char, char> {
         b = b_and_g[0];
         g = b_and_g[1];
         d = b_and_d[1];
-    }
-    else if b_and_g[0] == b_and_d[1] {
+    } else if b_and_g[0] == b_and_d[1] {
         b = b_and_g[0];
         g = b_and_g[1];
         d = b_and_d[0];
-
-    }
-    else if b_and_g[1] == b_and_d[0] {
+    } else if b_and_g[1] == b_and_d[0] {
         b = b_and_g[1];
         g = b_and_g[0];
         d = b_and_d[1];
-    }
-    else if b_and_g[1] == b_and_d[1] {
+    } else if b_and_g[1] == b_and_d[1] {
         b = b_and_g[1];
         g = b_and_g[0];
         d = b_and_d[0];
-    }
-    else {
+    } else {
         panic!("b-and-g check failed");
     }
 
@@ -220,7 +226,6 @@ fn part_2_decoding(input: &Vec<&str>) -> HashMap<char, char> {
     ])
 }
 
-
 fn day_08_seven_segment() {
     // let input_path = Path::new("input/08-demo.txt");
     let input_path = Path::new("input/08.txt");
@@ -230,7 +235,7 @@ fn day_08_seven_segment() {
     if let Ok(lines) = read_lines(input_path) {
         for line in lines {
             if let Ok(line_str) = line {
-                let in_and_out: Vec<&str>  = line_str.split(" | ").collect();
+                let in_and_out: Vec<&str> = line_str.split(" | ").collect();
                 // println!("{:?}", in_and_out[1]);
 
                 let in_strings: Vec<&str> = in_and_out[0].split(" ").collect();
@@ -239,20 +244,32 @@ fn day_08_seven_segment() {
                 let mut all_raw_codes = in_strings.to_vec();
                 all_raw_codes.extend(out_strings.to_vec());
 
-                let res: Vec<u32> = out_strings.iter().copied().map(string_to_digit_easy).filter(|x| x != &UNKNOWN).collect();
+                let res: Vec<u32> = out_strings
+                    .iter()
+                    .copied()
+                    .map(string_to_digit_easy)
+                    .filter(|x| x != &UNKNOWN)
+                    .collect();
                 part_1_total += res.len() as u32;
 
                 let char_mapping = part_2_decoding(&all_raw_codes);
-                let out_decoded: Vec<Vec<char>> = out_strings.to_vec().iter()
-                    .map(|x| decode(&x, &char_mapping)).collect();
+                let out_decoded: Vec<Vec<char>> = out_strings
+                    .to_vec()
+                    .iter()
+                    .map(|x| decode(&x, &char_mapping))
+                    .collect();
 
-                let out_numbers: Vec<u32> = out_decoded.to_vec().iter().map(|x| readout(&x)).collect();
+                let out_numbers: Vec<u32> =
+                    out_decoded.to_vec().iter().map(|x| readout(&x)).collect();
 
                 // println!("{:?}", char_mapping);
                 // println!("{:?}", out_decoded);
                 // println!("{:?}", out_numbers);
 
-                let output = out_numbers[0] * 1000 + out_numbers[1] * 100 + out_numbers[2] * 10 + out_numbers[3];
+                let output = out_numbers[0] * 1000
+                    + out_numbers[1] * 100
+                    + out_numbers[2] * 10
+                    + out_numbers[3];
                 // println!("{:?}", output);
                 part_2_total += output;
             }
@@ -267,9 +284,10 @@ fn main() {
     day_08_seven_segment();
 }
 
-
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }

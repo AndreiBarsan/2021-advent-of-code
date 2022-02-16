@@ -1,0 +1,19 @@
+name: AoC 2021 CI Rust Build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+  # check-clippy:
+  #   runs-on: ubuntu-latest
+
+

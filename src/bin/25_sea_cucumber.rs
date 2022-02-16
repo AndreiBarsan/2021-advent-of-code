@@ -1,5 +1,4 @@
 /// 2021 AoC Day 25: Sea Cucumber
-
 use std::fs;
 
 const EAST: char = '>';
@@ -27,8 +26,7 @@ fn step(cucumbers: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize) {
                 if cucumbers[row_idx][next_col] == EMPTY {
                     next_state[row_idx][next_col] = EAST;
                     moved_east += 1;
-                }
-                else {
+                } else {
                     next_state[row_idx][col_idx] = EAST;
                 }
             }
@@ -48,8 +46,7 @@ fn step(cucumbers: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize) {
                 if next_state[next_row][col_idx] == EMPTY && cucumbers[next_row][col_idx] != SOUTH {
                     next_next_state[next_row][col_idx] = SOUTH;
                     moved_south += 1;
-                }
-                else {
+                } else {
                     next_next_state[row_idx][col_idx] = SOUTH;
                 }
             }
@@ -68,7 +65,6 @@ fn step(cucumbers: &Vec<Vec<char>>) -> (Vec<Vec<char>>, usize) {
     (next_next_state, moved_total)
 }
 
-
 fn print_cucumbers(cucumbers: &Vec<Vec<char>>) {
     for row in cucumbers {
         let row_str: String = row.iter().collect();
@@ -76,13 +72,15 @@ fn print_cucumbers(cucumbers: &Vec<Vec<char>>) {
     }
 }
 
-
 fn day_25_sea_cucumber() {
     let input_fname = "input/25.txt";
     // let input_fname = "input/25-demo.txt";
 
-    let data: Vec<Vec<char>> = fs::read_to_string(input_fname).expect("Unable to read file.")
-        .split("\n").map(|x| x.to_string().chars().collect()).collect();
+    let data: Vec<Vec<char>> = fs::read_to_string(input_fname)
+        .expect("Unable to read file.")
+        .split("\n")
+        .map(|x| x.to_string().chars().collect())
+        .collect();
 
     println!("{} x {}", data.len(), data[0].len());
     print_cucumbers(&data);
@@ -108,7 +106,6 @@ fn day_25_sea_cucumber() {
     println!("Final state:");
     print_cucumbers(&state);
 }
-
 
 fn main() {
     day_25_sea_cucumber();

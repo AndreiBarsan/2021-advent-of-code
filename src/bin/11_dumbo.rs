@@ -1,6 +1,5 @@
 use std::fs;
 
-
 /// Returns the number of flashes that occur after n_steps given the initial condition.
 fn simulate_octopi(initial_octopi: &Vec<Vec<u32>>, n_steps: u32) -> u32 {
     let mut octopi = initial_octopi.to_vec();
@@ -46,7 +45,6 @@ fn simulate_octopi(initial_octopi: &Vec<Vec<u32>>, n_steps: u32) -> u32 {
                             }
                         }
                     }
-
                 }
             }
 
@@ -56,7 +54,6 @@ fn simulate_octopi(initial_octopi: &Vec<Vec<u32>>, n_steps: u32) -> u32 {
             if new_flashes == 0u32 {
                 break;
             }
-
         }
 
         total_flashes += flashes_this_step;
@@ -74,12 +71,10 @@ fn simulate_octopi(initial_octopi: &Vec<Vec<u32>>, n_steps: u32) -> u32 {
             println!("Part 2: Mega-flash at step {}", step + 1);
             break;
         }
-
     }
 
     total_flashes
 }
-
 
 fn day_11_dumbo() {
     // let data = fs::read_to_string("input/11-demo.txt").expect("Unable to read file.");

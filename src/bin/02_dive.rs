@@ -7,7 +7,6 @@ const CMD_DOWN: &str = "down";
 const CMD_UP: &str = "up";
 const CMD_FORWARD: &str = "forward";
 
-
 fn day_02_dive() {
     let input_path = Path::new("input/02.txt");
 
@@ -27,26 +26,32 @@ fn day_02_dive() {
                 if cmd == CMD_DOWN {
                     depth_a += distance;
                     aim += distance;
-                }
-                else if cmd == CMD_UP {
+                } else if cmd == CMD_UP {
                     depth_a -= distance;
                     aim -= distance;
-                }
-                else if cmd == CMD_FORWARD {
+                } else if cmd == CMD_FORWARD {
                     horizontal_a += distance;
                     horizontal_b += distance;
                     depth_b += aim * distance;
-                }
-                else {
+                } else {
                     panic!("Invalid command {:?}.", cmd);
                 }
-
             }
         }
     }
 
-    println!("Part A: {} x {} = {}", depth_a, horizontal_a, depth_a * horizontal_a);
-    println!("Part B: {} x {} = {}", depth_b, horizontal_b, depth_b * horizontal_b);
+    println!(
+        "Part A: {} x {} = {}",
+        depth_a,
+        horizontal_a,
+        depth_a * horizontal_a
+    );
+    println!(
+        "Part B: {} x {} = {}",
+        depth_b,
+        horizontal_b,
+        depth_b * horizontal_b
+    );
 }
 
 fn main() {
@@ -54,7 +59,9 @@ fn main() {
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
