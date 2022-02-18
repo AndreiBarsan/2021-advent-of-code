@@ -216,14 +216,17 @@ impl PartialOrd for Candidate {
 }
 
 /// Extracts a dynamic number k_i of keypoints and float fingerprints from the list points.
-fn extract_keypoint_features(readings: &[Point3d]) -> Vec<(Triangle3d, f64)> {
+fn extract_keypoint_features(
+    readings: &[Point3d],
+    max_dist: f64,
+    max_neighbors: usize,
+) -> Vec<(Triangle3d, f64)> {
     // TODO(andrei): If necessary, use a KD-tree here.
     // NOTE(andrei): There seem to be 28 scanners, each with ~20 points. I could potentially even compute ALL triangle
     // areas if I wanted to. For such small point clouds, it may actually end up slower if I use a KD-tree.
 
     let mut results = Vec::new();
-    let max_dist = 1500f64;
-    let k = 5;
+    let k = max_neighbors;
 
     for p_idx in 0..(readings.len() - 1) {
         let mut neighbors: BinaryHeap<Candidate> = BinaryHeap::new();
@@ -453,6 +456,26 @@ fn transform_points(input: &[Point3d], transform: &IsometryMatrix3<f64>) -> Vec<
         .collect()
 }
 
+fn invert_pose_hacky(input: &EulerPose) -> EulerPose {
+    let tra = Translation3::new(input.1.x as f64, input.1.y as f64, input.1.z as f64);
+    let (roll, pitch, yaw) = input.0;
+    let rot_mat = Rotation3::from_euler_angles(roll, pitch, yaw);
+    let iso = IsometryMatrix3::from_parts(tra, rot_mat);
+    let iso_inv = iso.inverse();
+    let rot_inv = iso_inv.rotation;
+    let trans_inv = iso_inv.translation;
+    let (i_roll, i_pitch, i_yaw) = rot_inv.euler_angles();
+
+    (
+        (i_roll, i_pitch, i_yaw),
+        Point3d {
+            x: trans_inv.vector.x.round() as i64,
+            y: trans_inv.vector.y.round() as i64,
+            z: trans_inv.vector.z.round() as i64,
+        },
+    )
+}
+
 fn align_all_points(
     scanners: &HashMap<i64, Vec<Point3d>>,
     pose_graph: &HashMap<(i64, i64), EulerPose>,
@@ -474,66 +497,61 @@ fn align_all_points(
             Some(path) => {
                 for path_idx in path.windows(2) {
                     println!("{:?}", path_idx);
-                    let pose_raw = pose_graph[&(path_idx[1] as i64, path_idx[0] as i64)];
+                    // TODO(andrei): Handle inverse edges more gracefully - just pass an Isometry3 around.
+                    let edge_key = (path_idx[1] as i64, path_idx[0] as i64);
+                    let rev_edge_key = (path_idx[0] as i64, path_idx[1] as i64);
+                    let pose_raw = if pose_graph.contains_key(&edge_key) {
+                        pose_graph[&edge_key]
+                    } else {
+                        invert_pose_hacky(&pose_graph[&rev_edge_key])
+                    };
+
                     let tra = Translation3::new(
                         pose_raw.1.x as f64,
                         pose_raw.1.y as f64,
                         pose_raw.1.z as f64,
                     );
-                    // let tra = Translation3::new((pose_raw.1.x as f64) * -1.0f64, (pose_raw.1.y as f64) * -1.0f64, (pose_raw.1.z as f64) * -1.0f64);
-
                     let (roll, pitch, yaw) = pose_raw.0;
                     let rot_mat = Rotation3::from_euler_angles(roll, pitch, yaw);
                     let iso = IsometryMatrix3::from_parts(tra, rot_mat);
 
-                    // if path_idx[0] == 3 {
-                    //     println!("HMM: {:?}", pose_raw);
-                    //     for xx in &current_pts {
-                    //         println!("{:?}", xx);
-                    //     }
-                    // }
-                    // println!("Doing transform...");
-                    // println!("{:?}", iso);
-
                     current_pts = transform_points(&current_pts, &iso);
-                    // if path_idx[0] == 3 {
-                    // }
                 }
             }
-            None => println!("Warning: no path found!"),
+            None => panic!("Warning: no path found between scanner {} and 0!", scanner),
         }
 
-        // if scanner == 1 {
-        let mut overlaps = 0;
-        // for zero_pt in &scanners[&0i64] {
-        //     println!("{:?}", zero_pt);
+        // // if scanner == 1 {
+        // let mut overlaps = 0;
+        // // for zero_pt in &scanners[&0i64] {
+        // //     println!("{:?}", zero_pt);
+        // // }
+        // println!("====");
+        // for new_p in &current_pts {
+        //     // println!("{:?}", new_p);
+        //     for zero_pt in &scanners[&0i64] {
+        //         if new_p.x == zero_pt.x && new_p.y == zero_pt.y && new_p.z == zero_pt.z {
+        //             println!("Overlap: {:?} vs {:?}", new_p, zero_pt);
+        //             overlaps += 1;
+        //         }
+        //     }
         // }
-        println!("====");
-        for new_p in &current_pts {
-            // println!("{:?}", new_p);
-            for zero_pt in &scanners[&0i64] {
-                if new_p.x == zero_pt.x && new_p.y == zero_pt.y && new_p.z == zero_pt.z {
-                    println!("Overlap: {:?} vs {:?}", new_p, zero_pt);
-                    overlaps += 1;
-                }
-            }
-        }
-        println!(
-            "scanner {}, {}/{} overlaps w/ 0",
-            scanner,
-            overlaps,
-            current_pts.len()
-        );
+        // println!(
+        //     "scanner {}, {}/{} overlaps w/ 0",
+        //     scanner,
+        //     overlaps,
+        //     current_pts.len()
+        // );
 
         // println!("{:?}", current_pts);
         all_points.append(&mut current_pts);
     }
 
-    all_points.sort();
-    for p in &all_points {
-        println!("{} {} {}", p.x, p.y, p.z);
-    }
-    println!("{} points", all_points.len());
+    // all_points.sort();
+    // for p in &all_points {
+    //     println!("{} {} {}", p.x, p.y, p.z);
+    // }
+    // println!("{} points", all_points.len());
 
     let mut all_pts_set: HashSet<Point3d> = HashSet::new();
     for pt in &all_points {
@@ -563,9 +581,13 @@ fn bfs(path: Vec<usize>, adj: &[Vec<i64>], n_scanners: usize) -> Option<Vec<usiz
     None
 }
 
+fn largest_manhattan() {}
+
 fn day_19_beacon_scanner() {
-    let input_fname = "input/19-demo.txt";
-    // let input_fname = "input/19.txt";
+    // let input_fname = "input/19-demo.txt";
+    let input_fname = "input/19.txt";
+    let max_dist = 1500f64;
+    let max_neighbors = 5usize;
     let scanner_beacons: Vec<Spec> = fs::read_to_string(input_fname)
         .expect("Unable to read file.")
         .split('\n')
@@ -574,7 +596,6 @@ fn day_19_beacon_scanner() {
         .collect();
 
     // println!("{:?}", scanner_beacons);
-
     let mut scanners: HashMap<i64, Vec<Point3d>> = HashMap::new();
     let mut cur_scanner: i64 = 0;
     for cmd in scanner_beacons {
@@ -591,13 +612,17 @@ fn day_19_beacon_scanner() {
 
     let scanner_keypoint_features: HashMap<i64, Vec<(Triangle3d, f64)>> = scanners
         .iter()
-        .map(|(k, v)| (*k, extract_keypoint_features(v)))
+        .map(|(k, v)| (*k, extract_keypoint_features(v, max_dist, max_neighbors)))
         .collect();
 
     // println!("Features for scanner #2: {:?}", scanner_keypoint_features[&2]);
     let (pose_graph, adj) =
         match_features_and_solve_poses(&scanner_keypoint_features, scanners.len() as i64);
 
+    // Note: For Part 1, 490 is too high - which makes sense considering I got this number while not properly aligning
+    //       several point clouds.
+    //
+    // In my case, 367 is correct for Part 1 - I just needed to process the pose graph properly.
     align_all_points(&scanners, &pose_graph, &adj, scanners.len() as i64);
 }
 
