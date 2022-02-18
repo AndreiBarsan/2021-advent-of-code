@@ -1,14 +1,14 @@
 # 🎄 Andrei's 2021 Advent of Code 🎄
-
+![Build Status](https://github.com/AndreiBarsan/2021-advent-of-code/actions/workflows/aoc-ci-build.yml/badge.svg)
 ## Learning Goals
  - [X] Rust basics (vectors, arrays, math, etc.)
  - [X] Rust basic CLI
  - [X] Rust linear algebra and ndarrays (e.g., https://github.com/rust-ndarray/ndarray)
- - [ ] Rust <> C++ interop
- - [ ] Simple GitHub Actions set up (just linting initially)
- - [ ] Automatic linting and formatting (trunk?)
+ - [X] Simple GitHub Actions set up (just linting initially)
+ - [X] Automatic linting and formatting (trunk?) Used `cargo fmt -- --check` to ensure unformatted code cannot pass the build.
  - [ ] Finish all AoC problems (hints are OK from Dec 12 on, in the second half)
  - [ ] Basic unit testing
+ - [ ] Rust <> C++ interop
  - [ ] Advanced lifetime concepts using this tutorial: https://rust-unofficial.github.io/too-many-lists/second-final.html
 
 ## Bonus Goals
@@ -24,6 +24,14 @@ the following:
 cargo run --release --bin <XX_problem>
 ```
 The above should automatically build the code with its dependencies, and run the appropriate problem.
+
+## Highlights
+
+ * I am particularly proud of my [Day 19 (Beacon Scanner) solution](src/bin/19_beacon_scanner.rs). I tackled the problem
+   as a computer vision challenge and ended up implementing very simple feature (triangle) detection and matching
+   followed by building a pose graph to transform all beacon readings (point clouds) into the same coordinate frame. I
+   leveraged the `nalgebra` crate a fair bit, and the final version solves the task in under 3ms on a 2019 Macbook Pro
+   with an i9 9880H (not counting disk IO ---if you do, the run time increases to about 14ms).
 
 ## Learnings
  - Powerful type-safe, efficient, support for ndarrays, but still at times much more verbose than numpy.

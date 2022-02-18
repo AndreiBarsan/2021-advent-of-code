@@ -8,8 +8,6 @@
 ///  - the basics of nalgebra
 extern crate nalgebra as na;
 
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -17,9 +15,12 @@ use std::collections::HashSet;
 use std::fs;
 use std::ops;
 use std::str::FromStr;
+use std::time::Instant;
 
 use na::geometry::{IsometryMatrix3, Rotation3, Translation3};
-use na::Point3;
+use na::{Point3, Vector3};
+
+type AdjacencyMatrix = Vec<Vec<i64>>;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Point3d {
@@ -65,8 +66,6 @@ impl ops::Sub<Point3d> for Point3d {
         }
     }
 }
-
-type EulerPose = ((f64, f64, f64), Point3d);
 
 #[derive(Debug)]
 enum Spec {
@@ -173,14 +172,23 @@ fn parse_beacon(line_str: &str) -> Spec {
 }
 
 fn str_to_coords_or_scanner(line_str: &str) -> Spec {
-    lazy_static! {
-        static ref SCANNER_START_RE: Regex = Regex::new(r"---\s+scanner\s+(\d+)\s+---").unwrap();
+    if line_str.chars().nth(1).unwrap() == '-' {
+        let parts: Vec<&str> = line_str.split(' ').collect();
+        let id = i64::from_str(parts[2]).unwrap();
+
+        Spec::NewScanner(id)
+    } else {
+        parse_beacon(line_str)
     }
 
-    match SCANNER_START_RE.captures(line_str) {
-        Some(captures) => Spec::NewScanner(i64::from_str(&captures[1]).unwrap()),
-        None => parse_beacon(line_str),
-    }
+    // This regex approach also works, but it several ms slower than manual parsing.
+    // lazy_static! {
+    //     static ref SCANNER_START_RE: Regex = Regex::new(r"---\s+scanner\s+(\d+)\s+---").unwrap();
+    // }
+    // match SCANNER_START_RE.captures(line_str) {
+    //     Some(captures) => Spec::NewScanner(i64::from_str(&captures[1]).unwrap()),
+    //     None => parse_beacon(line_str),
+    // }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -215,7 +223,7 @@ impl PartialOrd for Candidate {
     }
 }
 
-/// Extracts a dynamic number k_i of keypoints and float fingerprints from the list points.
+/// Extracts a dynamic number k_i of keypoints and float fingerprints from the points belonging to the i-th scanner.
 fn extract_keypoint_features(
     readings: &[Point3d],
     max_dist: f64,
@@ -224,8 +232,7 @@ fn extract_keypoint_features(
     // TODO(andrei): If necessary, use a KD-tree here.
     // NOTE(andrei): There seem to be 28 scanners, each with ~20 points. I could potentially even compute ALL triangle
     // areas if I wanted to. For such small point clouds, it may actually end up slower if I use a KD-tree.
-
-    let mut results = Vec::new();
+    let mut results = Vec::with_capacity(max_neighbors * max_neighbors);
     let k = max_neighbors;
 
     for p_idx in 0..(readings.len() - 1) {
@@ -244,7 +251,6 @@ fn extract_keypoint_features(
             });
         }
 
-        // XXX(andrei): Check that the neighbors are getting popped in the right order...
         while !neighbors.is_empty() {
             let n = neighbors.pop().unwrap();
             let cost = -1f64 * n.cost;
@@ -258,7 +264,6 @@ fn extract_keypoint_features(
         }
 
         let actual_k = knn.len();
-
         if actual_k > 0 {
             for i in 0..(actual_k - 1) {
                 for j in (i + 1)..actual_k {
@@ -275,12 +280,13 @@ fn extract_keypoint_features(
                     {
                         continue;
                     }
+
                     // Debug code
                     // if (tri_tmp.a_angle_rad() + tri_tmp.b_angle_rad() + tri_tmp.c_angle_rad() - 3.1415926535).abs() > 1e-5 {
                     //     panic!("Incorrect angles in triangle!");
                     // }
 
-                    // Name points consistently using the largest angle as a hint
+                    // This trick ensures we name points consistently using the largest angle as a hint.
                     let tri = {
                         if tri_tmp.a_angle_rad() > tri_tmp.b_angle_rad()
                             && tri_tmp.a_angle_rad() > tri_tmp.c_angle_rad()
@@ -299,11 +305,11 @@ fn extract_keypoint_features(
                                 c: knn[j],
                             }
                         } else {
-                            if !(tri_tmp.c_angle_rad() > tri_tmp.a_angle_rad()
-                                && tri_tmp.c_angle_rad() > tri_tmp.b_angle_rad())
-                            {
-                                panic!("Inconsistent angles. Math likely incorrect.");
-                            }
+                            // if !(tri_tmp.c_angle_rad() > tri_tmp.a_angle_rad()
+                            //     && tri_tmp.c_angle_rad() > tri_tmp.b_angle_rad())
+                            // {
+                            //     panic!("Inconsistent angles. Math likely incorrect.");
+                            // }
                             Triangle3d {
                                 a: knn[i],
                                 b: knn[j],
@@ -322,8 +328,8 @@ fn extract_keypoint_features(
     results
 }
 
-/// Returns the (roll, pitch, yaw) that rotate triangle B to match triangle A.
-fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<(f64, f64, f64)> {
+/// Returns the (roll, pitch, yaw) that rotates triangle B to match triangle A.
+fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<Rotation3<f64>> {
     // TODO(andrei): Clean up the code. Cache rotations.
     let pi = std::f64::consts::PI;
     for roll in &[0f64, -pi / 2f64, pi / 2f64, pi] {
@@ -335,10 +341,11 @@ fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<(f64, 
 
                 let r_tri_b = tri_b.rotated(&rot);
                 if tri_a.congruent(&r_tri_b) {
-                    // If we don't break, we will definitely find a few more good rotations due to Gimbal lock - we are
-                    // looping an over-parametrized space because Andrei is lazy.
+                    // If we don't return immediately, we will definitely find a few more good rotations due to Gimbal
+                    // lock - we are looping an over-parametrized space because Andrei is lazy. Even axis-angle should
+                    // be able to solve this.
                     // println!("{} {} {} = good rot", roll, pitch, yaw);
-                    return Some((*roll, *pitch, *yaw));
+                    return Some(rot);
                 }
             }
         }
@@ -346,62 +353,58 @@ fn match_rotation_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<(f64, 
     None
 }
 
-/// Returns the transform from B's to A's frame.
+/// Returns the translation from B's to A's frame, given a known rotation.
 fn match_translation_naive(
     tri_a: &Triangle3d,
     tri_b: &Triangle3d,
-    initial_rpy: (f64, f64, f64),
-) -> Option<Point3d> {
-    let rot = Rotation3::from_euler_angles(initial_rpy.0, initial_rpy.1, initial_rpy.2);
-    let r_tri_b = tri_b.rotated(&rot);
+    initial_rot: &Rotation3<f64>,
+) -> Option<Translation3<f64>> {
+    let r_tri_b = tri_b.rotated(initial_rot);
 
-    // let a_off = r_tri_b.a - tri_a.a;
-    // let b_off = r_tri_b.b - tri_a.b;
-    // let c_off = r_tri_b.c - tri_a.c;
     let a_off = tri_a.a - r_tri_b.a;
-    let b_off = tri_a.b - r_tri_b.b;
-    let c_off = tri_a.c - r_tri_b.c;
 
-    if (a_off - b_off).norm() > 1e-5 || (a_off - c_off).norm() > 1e-5 {
-        panic!("Inconsistent translation estimation. Math bug likely.");
-    }
+    // let b_off = tri_a.b - r_tri_b.b;
+    // let c_off = tri_a.c - r_tri_b.c;
+    // if (a_off - b_off).norm() > 1e-5 || (a_off - c_off).norm() > 1e-5 {
+    //     panic!("Inconsistent translation estimation. Math bug likely.");
+    // }
 
-    Some(a_off)
+    Some(Translation3::new(
+        a_off.x as f64,
+        a_off.y as f64,
+        a_off.z as f64,
+    ))
 }
 
-/// Finds the SE(3) relative transform between two triangles, searching over fixed rotation candidates.
+/// Finds the SE(3) relative transform from triangle A to triangle B, searching over fixed rotation candidates.
 ///
 /// Assumes rotations are multiples of pi/2 and triangles are not equilateral or isosceles.
-fn match_triangles_naive(
-    tri_a: &Triangle3d,
-    tri_b: &Triangle3d,
-) -> Option<((f64, f64, f64), Point3d)> {
+fn match_triangles_naive(tri_a: &Triangle3d, tri_b: &Triangle3d) -> Option<IsometryMatrix3<f64>> {
     let rot = match_rotation_naive(tri_a, tri_b);
 
     // TODO(andrei): Clean up this ugly "functional" code.
     let maybe_trans = rot
-        .map(|rpy| match_translation_naive(tri_a, tri_b, rpy))
+        .map(|rotation| match_translation_naive(tri_a, tri_b, &rotation))
         .flatten();
-    maybe_trans.map(|trans| (rot.unwrap(), trans))
+    maybe_trans.map(|trans| IsometryMatrix3::from_parts(trans, rot.unwrap()))
 }
 
 fn match_features_and_solve_poses(
     scanner_kp_feats: &HashMap<i64, Vec<(Triangle3d, f64)>>,
     n_scanners: i64,
-) -> (HashMap<(i64, i64), EulerPose>, Vec<Vec<i64>>) {
+) -> (HashMap<(i64, i64), IsometryMatrix3<f64>>, AdjacencyMatrix) {
     // Brute-force matching since the number of scanners is <30 and each will have something like 5 triangles.
-    let mut pose_graph: HashMap<(i64, i64), EulerPose> = HashMap::new();
-    let mut adj: Vec<Vec<i64>> = vec![vec![0; n_scanners as usize]; n_scanners as usize];
+    let mut pose_graph: HashMap<(i64, i64), IsometryMatrix3<f64>> = HashMap::new();
+    let mut adj: AdjacencyMatrix = vec![vec![0; n_scanners as usize]; n_scanners as usize];
 
     // Keep track of the pose from scanner K to 0.
-    let mut scanner_to_0: HashMap<i64, ((f64, f64, f64), Point3d)> = HashMap::new();
-    // Identity transform from 0 to itself.
-    scanner_to_0.insert(0, ((0f64, 0f64, 0f64), Point3d { x: 0, y: 0, z: 0 }));
+    let mut scanner_to_0: HashMap<i64, IsometryMatrix3<f64>> = HashMap::new();
+    scanner_to_0.insert(0, IsometryMatrix3::identity());
 
     // TODO(andrei): Rewrite this functionally.
     for scan_a in 0..n_scanners {
         for scan_b in (scan_a + 1)..n_scanners {
-            println!("\n\n{} --> {}", scan_a, scan_b);
+            // println!("\n\n{} --> {}", scan_a, scan_b);
 
             let mut found_tform = false;
 
@@ -414,9 +417,9 @@ fn match_features_and_solve_poses(
                         // println!("Scan {} matches {} @ \n\t{:?}\n\t{:?}", scan_a, scan_b, tri_a, tri_b);
 
                         let maybe_tform = match_triangles_naive(tri_a, tri_b);
-                        if let Some((rpy, trans)) = maybe_tform {
-                            println!("{:?}, {:?}", rpy, trans);
-                            pose_graph.insert((scan_a, scan_b), (rpy, trans));
+                        if let Some(isometry) = maybe_tform {
+                            // println!("{:?}, {:?}", rpy, trans);
+                            pose_graph.insert((scan_a, scan_b), isometry);
                             adj[scan_a as usize][scan_b as usize] = 1;
                             adj[scan_b as usize][scan_a as usize] = 1;
                             found_tform = true;
@@ -425,16 +428,8 @@ fn match_features_and_solve_poses(
                     }
                 }
             }
-
-            if found_tform {
-                // ...
-            } else {
-                println!("ooh wee, could not find a transform...")
-            }
         }
     }
-
-    println!("{:?}", pose_graph.keys());
 
     (pose_graph, adj)
 }
@@ -456,108 +451,77 @@ fn transform_points(input: &[Point3d], transform: &IsometryMatrix3<f64>) -> Vec<
         .collect()
 }
 
-fn invert_pose_hacky(input: &EulerPose) -> EulerPose {
-    let tra = Translation3::new(input.1.x as f64, input.1.y as f64, input.1.z as f64);
-    let (roll, pitch, yaw) = input.0;
-    let rot_mat = Rotation3::from_euler_angles(roll, pitch, yaw);
-    let iso = IsometryMatrix3::from_parts(tra, rot_mat);
-    let iso_inv = iso.inverse();
-    let rot_inv = iso_inv.rotation;
-    let trans_inv = iso_inv.translation;
-    let (i_roll, i_pitch, i_yaw) = rot_inv.euler_angles();
+// fn invert_pose_hacky(input: &EulerPose) -> EulerPose {
+//     let tra = Translation3::new(input.1.x as f64, input.1.y as f64, input.1.z as f64);
+//     let (roll, pitch, yaw) = input.0;
+//     let rot_mat = Rotation3::from_euler_angles(roll, pitch, yaw);
+//     let iso = IsometryMatrix3::from_parts(tra, rot_mat);
+//     let iso_inv = iso.inverse();
+//     let rot_inv = iso_inv.rotation;
+//     let trans_inv = iso_inv.translation;
+//     let (i_roll, i_pitch, i_yaw) = rot_inv.euler_angles();
 
-    (
-        (i_roll, i_pitch, i_yaw),
-        Point3d {
-            x: trans_inv.vector.x.round() as i64,
-            y: trans_inv.vector.y.round() as i64,
-            z: trans_inv.vector.z.round() as i64,
-        },
-    )
-}
+//     (
+//         (i_roll, i_pitch, i_yaw),
+//         Point3d {
+//             x: trans_inv.vector.x.round() as i64,
+//             y: trans_inv.vector.y.round() as i64,
+//             z: trans_inv.vector.z.round() as i64,
+//         },
+//     )
+// }
 
-fn align_all_points(
-    scanners: &HashMap<i64, Vec<Point3d>>,
-    pose_graph: &HashMap<(i64, i64), EulerPose>,
-    adj: &[Vec<i64>],
+fn compute_absolute_poses(
+    pose_graph: &HashMap<(i64, i64), IsometryMatrix3<f64>>,
+    adjacency: &[Vec<i64>],
     n_scanners: i64,
-) {
-    // TODO(andrei): Point transform chains are very inefficient. Instead, you want to pre-combine the transform chains
-    //               into one, and THEN transform the point cloud.
-
-    let mut all_points: Vec<Point3d> = Vec::new();
+) -> HashMap<i64, IsometryMatrix3<f64>> {
+    let mut relative_poses: HashMap<i64, IsometryMatrix3<f64>> = HashMap::new();
 
     for scanner in 0..n_scanners {
-        let path_to_zero = bfs(vec![scanner as usize], adj, n_scanners as usize);
-        println!("{:?}", path_to_zero);
+        // Gather the relative pose from some scanner to scanner 0.
+        let path_to_zero = bfs(vec![scanner as usize], adjacency, n_scanners as usize);
+        // println!("{:?}", path_to_zero);
 
-        let mut current_pts = scanners[&scanner].clone();
+        let mut relative_pose = IsometryMatrix3::identity();
 
         match path_to_zero {
             Some(path) => {
                 for path_idx in path.windows(2) {
-                    println!("{:?}", path_idx);
-                    // TODO(andrei): Handle inverse edges more gracefully - just pass an Isometry3 around.
                     let edge_key = (path_idx[1] as i64, path_idx[0] as i64);
                     let rev_edge_key = (path_idx[0] as i64, path_idx[1] as i64);
-                    let pose_raw = if pose_graph.contains_key(&edge_key) {
+                    let edge_pose = if pose_graph.contains_key(&edge_key) {
                         pose_graph[&edge_key]
                     } else {
-                        invert_pose_hacky(&pose_graph[&rev_edge_key])
+                        pose_graph[&rev_edge_key].inverse()
                     };
 
-                    let tra = Translation3::new(
-                        pose_raw.1.x as f64,
-                        pose_raw.1.y as f64,
-                        pose_raw.1.z as f64,
-                    );
-                    let (roll, pitch, yaw) = pose_raw.0;
-                    let rot_mat = Rotation3::from_euler_angles(roll, pitch, yaw);
-                    let iso = IsometryMatrix3::from_parts(tra, rot_mat);
-
-                    current_pts = transform_points(&current_pts, &iso);
+                    relative_pose = edge_pose * relative_pose;
                 }
             }
             None => panic!("Warning: no path found between scanner {} and 0!", scanner),
         }
-
-        // // if scanner == 1 {
-        // let mut overlaps = 0;
-        // // for zero_pt in &scanners[&0i64] {
-        // //     println!("{:?}", zero_pt);
-        // // }
-        // println!("====");
-        // for new_p in &current_pts {
-        //     // println!("{:?}", new_p);
-        //     for zero_pt in &scanners[&0i64] {
-        //         if new_p.x == zero_pt.x && new_p.y == zero_pt.y && new_p.z == zero_pt.z {
-        //             println!("Overlap: {:?} vs {:?}", new_p, zero_pt);
-        //             overlaps += 1;
-        //         }
-        //     }
-        // }
-        // println!(
-        //     "scanner {}, {}/{} overlaps w/ 0",
-        //     scanner,
-        //     overlaps,
-        //     current_pts.len()
-        // );
-
-        // println!("{:?}", current_pts);
-        all_points.append(&mut current_pts);
+        relative_poses.insert(scanner, relative_pose);
     }
 
-    // all_points.sort();
-    // for p in &all_points {
-    //     println!("{} {} {}", p.x, p.y, p.z);
-    // }
-    // println!("{} points", all_points.len());
+    relative_poses
+}
+
+fn count_unique_points(
+    scanners: &HashMap<i64, Vec<Point3d>>,
+    absolute_poses: &HashMap<i64, IsometryMatrix3<f64>>,
+) -> usize {
+    let mut all_points: Vec<Point3d> = Vec::new();
+    for (scanner, scanner_points) in scanners {
+        let mut current_pts = transform_points(scanner_points, &absolute_poses[scanner]);
+        all_points.append(&mut current_pts);
+    }
 
     let mut all_pts_set: HashSet<Point3d> = HashSet::new();
     for pt in &all_points {
         all_pts_set.insert(*pt);
     }
-    println!("{}", all_pts_set.len());
+    all_pts_set.len()
 }
 
 /// Breadth-first search using an adjacency matrix, used to find a valid pose graph path to the root node, '0'.
@@ -581,13 +545,30 @@ fn bfs(path: Vec<usize>, adj: &[Vec<i64>], n_scanners: usize) -> Option<Vec<usiz
     None
 }
 
-fn largest_manhattan() {}
+fn l1(vec: &Vector3<f64>) -> u64 {
+    (vec.x.abs().round() as u64) + (vec.y.abs().round() as u64) + (vec.z.abs().round() as u64)
+}
+
+fn compute_largest_manhattan(absolute_poses: &HashMap<i64, IsometryMatrix3<f64>>) -> u64 {
+    let mut max_l1: u64 = 0;
+    for s1_pose in absolute_poses.values() {
+        for s2_pose in absolute_poses.values() {
+            let offset = s1_pose.translation.vector - s2_pose.translation.vector;
+            let offset_l1 = l1(&offset);
+            if offset_l1 > max_l1 {
+                max_l1 = offset_l1;
+            }
+        }
+    }
+
+    max_l1
+}
 
 fn day_19_beacon_scanner() {
     // let input_fname = "input/19-demo.txt";
     let input_fname = "input/19.txt";
     let max_dist = 1500f64;
-    let max_neighbors = 5usize;
+    let max_neighbors = 3usize;
     let scanner_beacons: Vec<Spec> = fs::read_to_string(input_fname)
         .expect("Unable to read file.")
         .split('\n')
@@ -595,7 +576,6 @@ fn day_19_beacon_scanner() {
         .map(|x| str_to_coords_or_scanner(x))
         .collect();
 
-    // println!("{:?}", scanner_beacons);
     let mut scanners: HashMap<i64, Vec<Point3d>> = HashMap::new();
     let mut cur_scanner: i64 = 0;
     for cmd in scanner_beacons {
@@ -610,6 +590,7 @@ fn day_19_beacon_scanner() {
         }
     }
 
+    let start = Instant::now();
     let scanner_keypoint_features: HashMap<i64, Vec<(Triangle3d, f64)>> = scanners
         .iter()
         .map(|(k, v)| (*k, extract_keypoint_features(v, max_dist, max_neighbors)))
@@ -619,11 +600,26 @@ fn day_19_beacon_scanner() {
     let (pose_graph, adj) =
         match_features_and_solve_poses(&scanner_keypoint_features, scanners.len() as i64);
 
+    let absolute_poses = compute_absolute_poses(&pose_graph, &adj, scanners.len() as i64);
+
+    // Part 1
+    //
     // Note: For Part 1, 490 is too high - which makes sense considering I got this number while not properly aligning
     //       several point clouds.
     //
     // In my case, 367 is correct for Part 1 - I just needed to process the pose graph properly.
-    align_all_points(&scanners, &pose_graph, &adj, scanners.len() as i64);
+    let n_unique = count_unique_points(&scanners, &absolute_poses);
+    println!("{}", n_unique);
+
+    // Part 2
+    let largest_distance = compute_largest_manhattan(&absolute_poses);
+    println!("Largest manhattan distance: {}", largest_distance);
+
+    let solve_ms = start.elapsed().as_micros();
+    println!(
+        "Solver took {}µs. (Excluding input parsing and process initialization.)",
+        solve_ms
+    );
 }
 
 fn main() {
