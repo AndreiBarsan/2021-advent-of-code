@@ -1,8 +1,14 @@
-name: AoC 2021 CI Rust Build
+name: AoC '21 Rust Build
 on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
+
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
       - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
@@ -12,8 +18,8 @@ jobs:
         run: cargo test --verbose
       - name: Check formatting
         run: cargo fmt -- --check
-
-  # check-clippy:
-  #   runs-on: ubuntu-latest
+      # We need a fair bit of time to fix all issues found by clippy.
+      # - name: Clippy analysis
+      #   run: cargo clippy
 
 
