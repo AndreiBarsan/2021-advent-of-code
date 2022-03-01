@@ -1,6 +1,8 @@
 /// 2021 AoC Day 21: Dirac Dice
 ///
-/// TBD, but probably some reasoning about probability distributions!
+/// Rolling dice and forking universes - keep track of every possible roll of a set of dice at every round, using the
+/// now very familiar histogram pattern to avoid exponential blow-ups. Special care must be taken in order to properly
+/// account for when a game ends.
 ///
 // Demo input
 // Player 1 starting position: 4
@@ -12,8 +14,14 @@
 //
 /// Hint used: I looked at the Reddit thread and the high-level things were already things I knew, like how many game
 /// "instances" are actually duplicated many, many times. One hint which is basically a less "fancy" way of solving the
-/// problem is to keep a list of active games and #, even if it may have a few dupes, and process game tuples in the
-/// list basis, rather than being overly fancy about it with a fully tabulated state space. Let's see if that works...
+/// problem is to keep a list of active games and their count, even if it may have a few dupes, and process game tuples
+/// in the list basis, rather than being overly fancy about it with a fully tabulated state space. Let's see if that
+/// works...
+///
+/// This hint was not useful - turns out, I was already one step ahead of this approach and I ended up getting the same
+/// (incorrect) result with the list-based implementation. After a bit of thread reading (still not looking at code!),
+/// looking at posts in which people were re-stating the problem idea, it hit me - the second player's "universe forks"
+/// NEVER HAPPEN if the first player already won!
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -146,6 +154,10 @@ fn update_state(state: &UniverseHistogram, out_state: &mut UniverseHistogram, ma
                     }
 
                     for (p1_roll, p1_roll_count) in vec![1, 3, 6, 7, 6, 3, 1].iter().enumerate() {
+                        // This logic must be done in the outer roll loop (P1's rolls), as otherwise if we just do
+                        // `p1_wins += ...` and continue, we will go to the next P2 roll value (which is also
+                        // technically never reached), add P1's wins again, etc., thereby multi-counting P1's rolls once
+                        // for every value of the inner loop - hence the exact 7x over-estimation of P1's win count bug.
                         let p1_roll_val = p1_roll + 3;
                         let mut new_p1_pos = p1_pos + p1_roll_val;
                         if new_p1_pos > 10 {
@@ -186,7 +198,8 @@ fn part_2() {
     let mut state_b = vec![vec![vec![vec![0usize; 21usize]; 21usize]; 11usize]; 11usize];
     let n_stages = 10usize;
     let max_score = 21usize;
-    state_a[4][8][0][0] = 1;
+    // state_a[4][8][0][0] = 1;
+    state_a[7][3][0][0] = 1;
     let mut total_p1_wins = 0usize;
     let mut total_p2_wins = 0usize;
 
