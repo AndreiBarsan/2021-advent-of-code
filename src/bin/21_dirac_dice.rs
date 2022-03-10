@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 /// 2021 AoC Day 21: Dirac Dice
 ///
 /// Rolling dice and forking universes - keep track of every possible roll of a set of dice at every round, using the
@@ -12,19 +13,19 @@
 // Player 1 starting position: 7
 // Player 2 starting position: 3
 //
-/// Hint used: I looked at the Reddit thread and the high-level things were already things I knew, like how many game
-/// "instances" are actually duplicated many, many times. One hint which is basically a less "fancy" way of solving the
-/// problem is to keep a list of active games and their count, even if it may have a few dupes, and process game tuples
-/// in the list basis, rather than being overly fancy about it with a fully tabulated state space. Let's see if that
-/// works...
+/// Hint used: I looked at the Reddit thread and the high-level things were already things I knew, like the fact that a
+/// lot of game instances are actually duplicated many, many times. One hint, which is basically a less "fancy" way of
+/// solving the problem is to keep a list of active games and their count, even if it may have a few dupes, and process
+/// game tuples in the list basis, rather than being overly fancy about it with a fully tabulated state space. Let's see
+/// if that works...
 ///
 /// This hint was not useful - turns out, I was already one step ahead of this approach and I ended up getting the same
 /// (incorrect) result with the list-based implementation. After a bit of thread reading (still not looking at code!),
 /// looking at posts in which people were re-stating the problem idea, it hit me - the second player's "universe forks"
 /// NEVER HAPPEN if the first player already won!
+///
+/// This was the final bug I had to fix in order to get the correct answer to this question!
 use std::rc::Rc;
-use std::cell::RefCell;
-
 
 type UniverseHistogram = Vec<Vec<Vec<Vec<usize>>>>;
 
@@ -129,7 +130,11 @@ fn part_1() {
     println!("Part 1 result: {}", part1_res);
 }
 
-fn update_state(state: &UniverseHistogram, out_state: &mut UniverseHistogram, max_score: usize) -> (usize, usize) {
+fn update_state(
+    state: &UniverseHistogram,
+    out_state: &mut UniverseHistogram,
+    max_score: usize,
+) -> (usize, usize) {
     let mut p1_wins = 0usize;
     let mut p2_wins = 0usize;
 
@@ -169,7 +174,8 @@ fn update_state(state: &UniverseHistogram, out_state: &mut UniverseHistogram, ma
                             continue;
                         }
 
-                        for (p2_roll, p2_roll_count) in vec![1, 3, 6, 7, 6, 3, 1].iter().enumerate() {
+                        for (p2_roll, p2_roll_count) in vec![1, 3, 6, 7, 6, 3, 1].iter().enumerate()
+                        {
                             let p2_roll_val: usize = p2_roll + 3;
                             let mut new_p2_pos: usize = p2_pos + p2_roll_val;
                             if new_p2_pos > 10 {
@@ -178,10 +184,10 @@ fn update_state(state: &UniverseHistogram, out_state: &mut UniverseHistogram, ma
                             let new_p2_score = p2_score + new_p2_pos;
                             if new_p2_score >= max_score {
                                 p2_wins += p1_roll_count * p2_roll_count * count;
-                            }
-                            else {
+                            } else {
                                 // No winner so far
-                                out_state[new_p1_pos][new_p2_pos][new_p1_score][new_p2_score] += p1_roll_count * p2_roll_count * count;
+                                out_state[new_p1_pos][new_p2_pos][new_p1_score][new_p2_score] +=
+                                    p1_roll_count * p2_roll_count * count;
                             }
                         }
                     }
@@ -205,19 +211,20 @@ fn part_2() {
 
     for round in 0..n_stages {
         if round % 2 == 0 {
-            let (p1_wins, p2_wins ) = update_state(&state_a, &mut state_b, max_score);
+            let (p1_wins, p2_wins) = update_state(&state_a, &mut state_b, max_score);
             total_p1_wins += p1_wins;
             total_p2_wins += p2_wins;
-        }
-        else {
-            let (p1_wins, p2_wins ) = update_state(&state_b, &mut state_a, max_score);
+        } else {
+            let (p1_wins, p2_wins) = update_state(&state_b, &mut state_a, max_score);
             total_p1_wins += p1_wins;
             total_p2_wins += p2_wins;
-
         }
     }
 
-    println!("Part 2 result:\nP1 wins: {}\nP2 wins: {}", total_p1_wins, total_p2_wins);
+    println!(
+        "Part 2 result:\nP1 wins: {}\nP2 wins: {}",
+        total_p1_wins, total_p2_wins
+    );
 }
 
 fn day_21_dirac_dice() {
