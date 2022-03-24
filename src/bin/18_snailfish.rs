@@ -3,9 +3,13 @@ use std::cell::RefCell;
 use std::fmt;
 /// 2021 AoC Day 18: Snailfish
 ///
-/// TBD
 /// Very tricky for me as a Rust beginner, since we need to build, manage, and operate upon (mutate) a tree, which is
 /// difficult to do with Rust's reference and borrowing semantics.
+///
+/// After solving it in Python and continuing to struggle with the Rust implementation, I glanced at some other people's
+/// Rust solutions - some just operate on token sequences (simpler, IMO), others build trees using enum and Box. I'll
+/// try the token approach next, even though I used trees in Python, since my initial attempt at Rc/RefCell trees did
+/// not go well.
 use std::fs;
 use std::rc::Rc;
 
