@@ -35,12 +35,17 @@ A:
 => 13725 total is too low
 
 */
+use std::collections::HashMap;
 
 const COR_ROW: i32 = 0;
 // UR = upper-room
 const UR_ROW: i32 = 1;
-// LR = lower-room
-const LR_ROW: i32 = 2;
+// MR = mid-room
+const MR_ROW: i32 = 2;
+// LR = low-room
+const LR_ROW: i32 = 3;
+// BR = bottom-room
+const BR_ROW: i32 = 4;
 
 // Index of the last column in the corridor.
 const END_COL: i32 = 10;
@@ -56,7 +61,7 @@ const OK_STOP_COL: &[bool] = &[
 ];
 
 // TODO(andrei): Refactor this enum so each enum value contains its initial letter, cost, and target column.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Copy, Eq, Hash, PartialEq, Clone)]
 enum Kind {
     Amber,
     Bronze,
@@ -64,7 +69,7 @@ enum Kind {
     Desert,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Copy, Eq, Hash, PartialEq, Clone)]
 enum State {
     Unmoved,
     InHallway,
@@ -98,7 +103,7 @@ fn get_target_col(kind: &Kind) -> i32 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 struct Amphipod {
     row: i32,
     col: i32,
@@ -142,7 +147,7 @@ impl World {
 
     fn is_solved(&self) -> bool {
         for a in &self.amphipods {
-            let ok_row = a.row == UR_ROW || a.row == LR_ROW;
+            let ok_row = a.row > COR_ROW;
             let ok_col = a.col == get_target_col(&a.kind);
 
             if !ok_row || !ok_col {
@@ -288,7 +293,7 @@ impl World {
 
         if target_col > amphipod.col {
             // check right move
-            for col in amphipod.col..=target_col {
+            for col in amphipod.col + 1..=target_col {
                 if !self.is_free(COR_ROW, col) {
                     can_path = false;
                     break;
@@ -296,7 +301,7 @@ impl World {
             }
         } else {
             // check left move
-            for col in target_col..=amphipod.col {
+            for col in target_col..amphipod.col {
                 if !self.is_free(COR_ROW, col) {
                     can_path = false;
                     break;
@@ -364,19 +369,32 @@ fn print_world(world: &World) {
 
 fn day_23_amphipods() {
     let mut world = World::new();
-    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Bronze));
-    world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Amber));
+    // world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Bronze));
+    // world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Amber));
 
-    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Copper));
-    world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Desert));
+    // world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Copper));
+    // world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Desert));
 
-    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Bronze));
-    world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Copper));
+    // world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Bronze));
+    // world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Copper));
+
+    // world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
+    // world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Amber));
+    // Sample input:
+    // "BCBD / ADCA"
+
+    // Contest input
+    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Desert));
+    world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Bronze));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Amber));
+    world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Copper));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Copper));
+    world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Bronze));
 
     world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
     world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Amber));
-    // Sample input:
-    // "BCBD / ADCA"
 
     // Dummy case where the initial world is actually solved
     //
@@ -392,42 +410,57 @@ fn day_23_amphipods() {
     // world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
     // world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Desert));
 
-    // println!("{:?}", world.amphipods[3]);
-    // println!("{:?}", get_initial(&world.amphipods[3].kind));
-    // println!("{:?}", get_initial(&world.amphipods[4].kind));
-    // println!("{:?}", get_initial(&world.amphipods[5].kind));
-
     print_world(&world);
 
     // TODO(andrei): Compute max step count meaningfully
     let mut worlds = vec![world];
     let mut min_cost: i64 = 100000000;
-    for generation in 0..10 {
+    for generation in 0..25 {
         println!("Generation {}, {} worlds", generation, worlds.len());
         let mut new_worlds = Vec::new();
+        let mut amphi_to_cost: HashMap<Vec<Amphipod>, i64> = HashMap::new();
 
-        for (w_idx, w) in worlds.iter().enumerate() {
+        for w in &worlds {
             if w.is_solved() {
-                println!("Solved world of cost c = {}", w.cost_so_far);
+                // println!("Solved world of cost c = {}", w.cost_so_far);
                 if w.cost_so_far <= min_cost {
                     min_cost = w.cost_so_far;
                 }
+                continue;
             }
-            if generation == 1 {
-                if w.is_free(UR_ROW, DESERT_COL) {
-                    print_world(&w);
-                }
-                // if !w.is_free(UR_ROW, DESERT_COL) && !w.is_free(LR_ROW, DESERT_COL) {
-                //     if w.at(LR_ROW, DESERT_COL).kind != Kind::Amber {
-                //         print_world(&w);
-                //     }
-                // }
-            }
+            // if generation == 1 {
+            //     if w.is_free(UR_ROW, DESERT_COL) {
+            //         print_world(&w);
+            //     }
+            //     // if !w.is_free(UR_ROW, DESERT_COL) && !w.is_free(LR_ROW, DESERT_COL) {
+            //     //     if w.at(LR_ROW, DESERT_COL).kind != Kind::Amber {
+            //     //         print_world(&w);
+            //     //     }
+            //     // }
+            // }
             // if generation == 2 {
             //     // this WORKS
             //     if w.is_free(UR_ROW, DESERT_COL) && w.is_free(LR_ROW, DESERT_COL) {
             //         print_world(&w);
+            //         if !w.is_free(COR_ROW, 10) {
+            //             println!("{:?}", w.at(COR_ROW, 10));
+            //         }
             //     }
+            // }
+            // if generation == 3 {
+            //     // this WORKS
+            //     if !w.is_free(LR_ROW, DESERT_COL) && w.at(LR_ROW, DESERT_COL).kind == Kind::Desert {
+            //         print_world(&w);
+            //     }
+            // }
+            // if generation == 5 {
+            // skip gen 4 because we need to "free" the other D as well
+            // if !w.is_free(LR_ROW, DESERT_COL)
+            //     && w.at(LR_ROW, DESERT_COL).kind == Kind::Desert
+            //     && !w.is_free(UR_ROW, DESERT_COL)
+            // {
+            //     print_world(&w);
+            // }
             // }
             let moves = &mut w.moves();
             // if moves.len() == 0 {
@@ -436,7 +469,24 @@ fn day_23_amphipods() {
             new_worlds.append(moves);
         }
 
-        worlds = new_worlds;
+        for nw in &mut new_worlds {
+            if amphi_to_cost.contains_key(&nw.amphipods) {
+                if amphi_to_cost.get(&nw.amphipods).unwrap() > &nw.cost_so_far {
+                    amphi_to_cost.insert(nw.amphipods.clone(), nw.cost_so_far);
+                }
+            } else {
+                amphi_to_cost.insert(nw.amphipods.clone(), nw.cost_so_far);
+            }
+        }
+
+        println!("min cost so far: {}", min_cost);
+        worlds.clear();
+        for el in amphi_to_cost {
+            worlds.push(World {
+                amphipods: el.0,
+                cost_so_far: el.1,
+            });
+        }
     }
 
     println!("min cost ever = {}", min_cost);
