@@ -332,13 +332,25 @@ impl World {
 }
 
 fn print_world(world: &World) {
-    let mut out_arr = vec![
-        String::from("#############"),
-        String::from("#...........#"),
-        String::from("### # # # ###"),
-        String::from("  # # # # #  "),
-        String::from("  #########  "),
-    ];
+    let mut out_arr = if world.height == 3 {
+        vec![
+            String::from("#############"),
+            String::from("#...........#"),
+            String::from("### # # # ###"),
+            String::from("  # # # # #  "),
+            String::from("  #########  "),
+        ]
+    } else {
+        vec![
+            String::from("#############"),
+            String::from("#...........#"),
+            String::from("### # # # ###"),
+            String::from("  # # # # #  "),
+            String::from("  # # # # #  "),
+            String::from("  # # # # #  "),
+            String::from("  #########  "),
+        ]
+    };
     for a in &world.amphipods {
         let c = (a.col + 1) as usize;
         out_arr[(a.row + 1) as usize].replace_range(c..c + 1, a.initial());
@@ -383,6 +395,42 @@ fn part_1_contest_world() -> World {
 
     world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
     world.amphipods.push(Amphipod::new(MR_ROW, 8, Kind::Amber));
+
+    world
+}
+
+/// Adds the fixed extra input rows for Part 2, which are common to both the sample and contest settings.
+fn insert_part_2_rows(world: &mut World) {
+    // #D#C#B#A#
+    // #D#B#A#C#
+    world.amphipods.push(Amphipod::new(MR_ROW, 2, Kind::Desert));
+    world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Desert));
+
+    world.amphipods.push(Amphipod::new(MR_ROW, 4, Kind::Copper));
+    world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Bronze));
+
+    world.amphipods.push(Amphipod::new(MR_ROW, 6, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Amber));
+
+    world.amphipods.push(Amphipod::new(MR_ROW, 8, Kind::Amber));
+    world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Copper));
+}
+
+fn part_2_sample_world() -> World {
+    let mut world = World::new(PART_2_HEIGHT);
+    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(BR_ROW, 2, Kind::Amber));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Copper));
+    world.amphipods.push(Amphipod::new(BR_ROW, 4, Kind::Desert));
+
+    world.amphipods.push(Amphipod::new(BR_ROW, 6, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(BR_ROW, 6, Kind::Copper));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
+    world.amphipods.push(Amphipod::new(BR_ROW, 8, Kind::Amber));
+
+    insert_part_2_rows(&mut world);
 
     world
 }
@@ -479,8 +527,15 @@ fn part_1() {
     solve(&part_1_contest_world());
 }
 
+fn part_2() {
+    println!("Part 2:");
+    println!("Sample:");
+    solve(&part_2_sample_world());
+}
+
 fn day_23_amphipods() {
     part_1();
+    part_2();
 }
 
 fn main() {
