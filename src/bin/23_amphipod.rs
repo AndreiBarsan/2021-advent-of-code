@@ -1,6 +1,12 @@
 /// 2021 AoC Day 23: Amphipod
 ///
 /// Find the most efficient way of moving amphipods around such that they each end up in their target room.
+///
+/// After finishing the problem, I realize that I should probably keep track of the amphipod state as a char array,
+/// maybe a 2D one, rather than a list of entities. That would reduce all pathing checks to O(1) look-ups and simplify
+/// many parts of the code. We'd still need to track a list of amphipod entities so we can generate each one's possible
+/// moves, but we should be able to code this such that we still maintain the high performance of the char array
+/// look-ups.
 use std::collections::HashMap;
 
 /// Corridor row
@@ -121,10 +127,6 @@ impl World {
         }
     }
 
-    fn is_done(&self) -> bool {
-        self.amphipods.iter().all(|a| a.state == State::Done)
-    }
-
     fn is_solved(&self) -> bool {
         self.amphipods
             .iter()
@@ -175,14 +177,6 @@ impl World {
                 // We are on a non-bottom row
                 // If the amphipod(s) below us are all the same kind, we are done, otherwise, continue the algorithm
                 // since we will need to try to move out.
-                //
-                // Note that this will panic if we're on the top row and the bottom row is blank, but that should never
-                // happen by design.
-                // if self.is_free(amphipod.row, LR_ROW) {
-                //     println!("\n\n\n");
-                //     print_world(&self);
-                //     panic!("Invalid map");
-                // }
 
                 let mut homogeneous = true;
                 for row in (amphipod.row + 1)..(self.height as i32) {
@@ -199,7 +193,7 @@ impl World {
         }
 
         if !self.is_free(amphipod.row - 1, amphipod.col) {
-            // We are blocked in
+            // We are blocked-in.
             return moves;
         }
 
@@ -424,8 +418,28 @@ fn part_2_sample_world() -> World {
     world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Copper));
     world.amphipods.push(Amphipod::new(BR_ROW, 4, Kind::Desert));
 
-    world.amphipods.push(Amphipod::new(BR_ROW, 6, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Bronze));
     world.amphipods.push(Amphipod::new(BR_ROW, 6, Kind::Copper));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
+    world.amphipods.push(Amphipod::new(BR_ROW, 8, Kind::Amber));
+
+    insert_part_2_rows(&mut world);
+
+    world
+}
+
+fn part_2_contest_world() -> World {
+    let mut world = World::new(PART_2_HEIGHT);
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Desert));
+    world.amphipods.push(Amphipod::new(BR_ROW, 2, Kind::Bronze));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Amber));
+    world.amphipods.push(Amphipod::new(BR_ROW, 4, Kind::Copper));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Copper));
+    world.amphipods.push(Amphipod::new(BR_ROW, 6, Kind::Bronze));
 
     world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
     world.amphipods.push(Amphipod::new(BR_ROW, 8, Kind::Amber));
@@ -438,10 +452,10 @@ fn part_2_sample_world() -> World {
 fn solve(initial_world: &World) {
     print_world(&initial_world);
 
-    // TODO(andrei): Compute max step count meaningfully
     let mut worlds = vec![initial_world.clone()];
     let mut min_cost: i64 = i64::MAX;
-    for generation in 0..25 {
+    let max_generations = 50;
+    for generation in 0..max_generations {
         println!("Generation {}, {} worlds", generation, worlds.len());
         let mut new_worlds = Vec::new();
         let mut amphi_to_cost: HashMap<Vec<Amphipod>, i64> = HashMap::new();
@@ -489,9 +503,6 @@ fn solve(initial_world: &World) {
             // }
             // }
             let moves = &mut w.moves();
-            // if moves.len() == 0 {
-            //     print_world(&w);
-            // }
             new_worlds.append(moves);
         }
 
@@ -503,6 +514,10 @@ fn solve(initial_world: &World) {
             } else {
                 amphi_to_cost.insert(nw.amphipods.clone(), nw.cost_so_far);
             }
+        }
+
+        if amphi_to_cost.is_empty() {
+            break;
         }
 
         worlds.clear();
@@ -531,6 +546,9 @@ fn part_2() {
     println!("Part 2:");
     println!("Sample:");
     solve(&part_2_sample_world());
+
+    println!("Contest:");
+    solve(&part_2_contest_world());
 }
 
 fn day_23_amphipods() {
