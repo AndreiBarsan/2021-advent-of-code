@@ -1,5 +1,6 @@
 # 🎄 Andrei's 2021 Advent of Code 🎄
-![Build Status](https://github.com/AndreiBarsan/2021-advent-of-code/actions/workflows/aoc-ci-build.yml/badge.svg)
+[![Build Status](https://github.com/AndreiBarsan/2021-advent-of-code/actions/workflows/aoc-ci-build.yml/badge.svg)](https://github.com/AndreiBarsan/2021-advent-of-code/actions/workflows/aoc-ci-build.yml)
+
 ## Learning Goals
  - [X] Rust basics (vectors, arrays, math, etc.)
  - [X] Rust basic CLI
