@@ -1,3 +1,6 @@
+/// 2021 AoC Day 23: Amphipod
+///
+/// Find the most efficient way of moving amphipods around such that they each end up in their target room.
 use std::collections::HashMap;
 
 /// Corridor row
@@ -132,14 +135,7 @@ impl World {
         self.amphipods
             .iter()
             .find(|&a| a.row == row && a.col == col)
-            // XXX(andrei): Proide useful error message
-            .unwrap()
-        // for a in &self.amphipods {
-        //     if a.row == row && a.col == col {
-        //         return &a;
-        //     }
-        // }
-        // panic!("invalid at(), no amphipod found!!");
+            .expect("invalid at(), no amphipod found!!")
     }
 
     fn with_move(
@@ -176,9 +172,9 @@ impl World {
                 // We are on the bottom row, with nobody to block. We're done.
                 return vec![(amphipod.row, amphipod.col, State::Done, 0i64)];
             } else {
-                // We are on the top row
-                // If the amphipod below us is the same kind, we are done, otherwise, continue the algorithm since we
-                // will need to try to move out.
+                // We are on a non-bottom row
+                // If the amphipod(s) below us are all the same kind, we are done, otherwise, continue the algorithm
+                // since we will need to try to move out.
                 //
                 // Note that this will panic if we're on the top row and the bottom row is blank, but that should never
                 // happen by design.
@@ -188,9 +184,15 @@ impl World {
                 //     panic!("Invalid map");
                 // }
 
-                // TODO(andrei): Check all below here, as needed.
-                let neighbor = self.at(MR_ROW, amphipod.col);
-                if neighbor.kind == amphipod.kind {
+                let mut homogeneous = true;
+                for row in (amphipod.row + 1)..(self.height as i32) {
+                    let neighbor = self.at(row, amphipod.col);
+                    if neighbor.kind != amphipod.kind {
+                        homogeneous = false;
+                        break;
+                    }
+                }
+                if homogeneous {
                     return vec![(amphipod.row, amphipod.col, State::Done, 0i64)];
                 }
             }
@@ -205,12 +207,9 @@ impl World {
         for col in (0..amphipod.col).rev() {
             if self.is_free(COR_ROW, col) {
                 if OK_STOP_COL[col as usize] {
-                    let mut n_steps = (amphipod.col - col + 1) as i64;
-                    // TODO(andrei): Compute n-steps with MATH.
-                    if amphipod.row == MR_ROW {
-                        n_steps += 1;
-                    }
-                    let cost_to_left = n_steps * amphipod.move_cost();
+                    let n_hor_steps = (amphipod.col - col) as i64;
+                    let n_ver_steps = amphipod.row as i64;
+                    let cost_to_left = (n_hor_steps + n_ver_steps) * amphipod.move_cost();
                     moves.push((COR_ROW, col, State::InHallway, cost_to_left));
                 }
             } else {
@@ -221,12 +220,9 @@ impl World {
         for col in amphipod.col + 1..=END_COL {
             if self.is_free(COR_ROW, col) {
                 if OK_STOP_COL[col as usize] {
-                    let mut n_steps = (col - amphipod.col + 1) as i64;
-                    // TODO(andrei): Compute n-steps with MATH.
-                    if amphipod.row == MR_ROW {
-                        n_steps += 1;
-                    }
-                    let cost_to_right = n_steps * amphipod.move_cost();
+                    let n_hor_steps = (col - amphipod.col) as i64;
+                    let n_ver_steps = amphipod.row as i64;
+                    let cost_to_right = (n_hor_steps + n_ver_steps) * amphipod.move_cost();
                     moves.push((COR_ROW, col, State::InHallway, cost_to_right));
                 }
             } else {
@@ -344,7 +340,7 @@ fn print_world(world: &World) {
 fn part_1_sample_world() -> World {
     // Sample input:
     // "BCBD / ADCA"
-    let mut world = World::new(PART_2_HEIGHT);
+    let mut world = World::new(PART_1_HEIGHT);
     world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Bronze));
     world.amphipods.push(Amphipod::new(MR_ROW, 2, Kind::Amber));
 
