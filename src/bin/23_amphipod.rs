@@ -1,51 +1,18 @@
-/*
-
-row 0 = corridor
-row 1 & 2 = dens
-
-col = 0,1,9,10 are spaces
-cols 2, 4, 6, 8 are right above dens
-cols 3, 5, and 7 are between dens
-
-#############
-#...........#
-###D#A#C#D###
-  #B#C#B#A#
-  #########
-*/
-
-/*
-
-D:
-5 * 1000 (D goes to the bottom)
-8 * 1000
-
-C:
-1 * 100
-5 * 100
-
-B:
-6 * 10
-5 * 10
-
-A:
-6 * 1
-9 * 1
-
-=> 13725 total is too low
-
-*/
 use std::collections::HashMap;
 
+/// Corridor row
 const COR_ROW: i32 = 0;
-// UR = upper-room
+/// UR = upper-room
 const UR_ROW: i32 = 1;
-// MR = mid-room
+/// MR = mid-room
 const MR_ROW: i32 = 2;
-// LR = low-room
+/// LR = low-room
 const LR_ROW: i32 = 3;
-// BR = bottom-room
+/// BR = bottom-room
 const BR_ROW: i32 = 4;
+
+const PART_1_HEIGHT: usize = 3;
+const PART_2_HEIGHT: usize = 5;
 
 // Index of the last column in the corridor.
 const END_COL: i32 = 10;
@@ -55,13 +22,12 @@ const BRONZE_COL: i32 = 4;
 const COPPER_COL: i32 = 6;
 const DESERT_COL: i32 = 8;
 
-// 0, 1, 3, 5, 7, 9, 10 are OK to stop in after getting out
 const OK_STOP_COL: &[bool] = &[
+    // 0, 1, 3, 5, 7, 9, 10 are OK to stop in after getting out
     true, true, false, true, false, true, false, true, false, true, true,
 ];
 
-// TODO(andrei): Refactor this enum so each enum value contains its initial letter, cost, and target column.
-#[derive(Debug, Copy, Eq, Hash, PartialEq, Clone)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 enum Kind {
     Amber,
     Bronze,
@@ -69,41 +35,43 @@ enum Kind {
     Desert,
 }
 
-#[derive(Debug, Copy, Eq, Hash, PartialEq, Clone)]
+impl Kind {
+    fn move_cost(&self) -> i64 {
+        match *self {
+            Kind::Amber => 1,
+            Kind::Bronze => 10,
+            Kind::Copper => 100,
+            Kind::Desert => 1000,
+        }
+    }
+
+    fn initial(&self) -> &'static str {
+        match *self {
+            Kind::Amber => "A",
+            Kind::Bronze => "B",
+            Kind::Copper => "C",
+            Kind::Desert => "D",
+        }
+    }
+
+    fn target_col(&self) -> i32 {
+        match *self {
+            Kind::Amber => AMBER_COL,
+            Kind::Bronze => BRONZE_COL,
+            Kind::Copper => COPPER_COL,
+            Kind::Desert => DESERT_COL,
+        }
+    }
+}
+
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 enum State {
     Unmoved,
     InHallway,
     Done,
 }
 
-fn get_cost(kind: &Kind) -> i64 {
-    match kind {
-        Kind::Amber => 1,
-        Kind::Bronze => 10,
-        Kind::Copper => 100,
-        Kind::Desert => 1000,
-    }
-}
-
-fn get_initial(kind: &Kind) -> &'static str {
-    match kind {
-        Kind::Amber => "A",
-        Kind::Bronze => "B",
-        Kind::Copper => "C",
-        Kind::Desert => "D",
-    }
-}
-
-fn get_target_col(kind: &Kind) -> i32 {
-    match kind {
-        Kind::Amber => AMBER_COL,
-        Kind::Bronze => BRONZE_COL,
-        Kind::Copper => COPPER_COL,
-        Kind::Desert => DESERT_COL,
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct Amphipod {
     row: i32,
     col: i32,
@@ -120,50 +88,58 @@ impl Amphipod {
             state: State::Unmoved,
         }
     }
+
+    fn move_cost(&self) -> i64 {
+        self.kind.move_cost()
+    }
+
+    fn initial(&self) -> &'static str {
+        self.kind.initial()
+    }
+
+    fn target_col(&self) -> i32 {
+        self.kind.target_col()
+    }
 }
 
 #[derive(Debug, Clone)]
 struct World {
     amphipods: Vec<Amphipod>,
     cost_so_far: i64,
+    height: usize,
 }
 
 impl World {
-    fn new() -> Self {
+    fn new(height: usize) -> Self {
         World {
             amphipods: Vec::new(),
             cost_so_far: 0,
+            height: height,
         }
     }
 
     fn is_done(&self) -> bool {
-        for a in &self.amphipods {
-            if a.state != State::Done {
-                return false;
-            }
-        }
-        true
+        self.amphipods.iter().all(|a| a.state == State::Done)
     }
 
     fn is_solved(&self) -> bool {
-        for a in &self.amphipods {
-            let ok_row = a.row > COR_ROW;
-            let ok_col = a.col == get_target_col(&a.kind);
-
-            if !ok_row || !ok_col {
-                return false;
-            }
-        }
-        true
+        self.amphipods
+            .iter()
+            .all(|a| a.row > COR_ROW && a.col == a.target_col())
     }
 
     fn at(&self, row: i32, col: i32) -> &Amphipod {
-        for a in &self.amphipods {
-            if a.row == row && a.col == col {
-                return &a;
-            }
-        }
-        panic!("invalid at(), no amphipod found!!");
+        self.amphipods
+            .iter()
+            .find(|&a| a.row == row && a.col == col)
+            // XXX(andrei): Proide useful error message
+            .unwrap()
+        // for a in &self.amphipods {
+        //     if a.row == row && a.col == col {
+        //         return &a;
+        //     }
+        // }
+        // panic!("invalid at(), no amphipod found!!");
     }
 
     fn with_move(
@@ -183,12 +159,7 @@ impl World {
     }
 
     fn is_free(&self, row: i32, col: i32) -> bool {
-        for a in &self.amphipods {
-            if a.row == row && a.col == col {
-                return false;
-            }
-        }
-        true
+        !self.amphipods.iter().any(|a| a.row == row && a.col == col)
     }
 
     /// Returns all valid non-end-goal moves for the unmoved amphipod at the given index, with associated cost.
@@ -199,9 +170,9 @@ impl World {
             panic!("Attempted to move a hallway/finished amphipod!");
         }
 
-        if amphipod.col == get_target_col(&amphipod.kind) {
+        if amphipod.col == amphipod.target_col() {
             // We are on the right column
-            if amphipod.row == LR_ROW {
+            if (amphipod.row as usize) == self.height - 1usize {
                 // We are on the bottom row, with nobody to block. We're done.
                 return vec![(amphipod.row, amphipod.col, State::Done, 0i64)];
             } else {
@@ -217,7 +188,8 @@ impl World {
                 //     panic!("Invalid map");
                 // }
 
-                let neighbor = self.at(LR_ROW, amphipod.col);
+                // TODO(andrei): Check all below here, as needed.
+                let neighbor = self.at(MR_ROW, amphipod.col);
                 if neighbor.kind == amphipod.kind {
                     return vec![(amphipod.row, amphipod.col, State::Done, 0i64)];
                 }
@@ -234,10 +206,11 @@ impl World {
             if self.is_free(COR_ROW, col) {
                 if OK_STOP_COL[col as usize] {
                     let mut n_steps = (amphipod.col - col + 1) as i64;
-                    if amphipod.row == LR_ROW {
+                    // TODO(andrei): Compute n-steps with MATH.
+                    if amphipod.row == MR_ROW {
                         n_steps += 1;
                     }
-                    let cost_to_left = n_steps * get_cost(&amphipod.kind);
+                    let cost_to_left = n_steps * amphipod.move_cost();
                     moves.push((COR_ROW, col, State::InHallway, cost_to_left));
                 }
             } else {
@@ -249,10 +222,11 @@ impl World {
             if self.is_free(COR_ROW, col) {
                 if OK_STOP_COL[col as usize] {
                     let mut n_steps = (col - amphipod.col + 1) as i64;
-                    if amphipod.row == LR_ROW {
+                    // TODO(andrei): Compute n-steps with MATH.
+                    if amphipod.row == MR_ROW {
                         n_steps += 1;
                     }
-                    let cost_to_right = n_steps * get_cost(&amphipod.kind);
+                    let cost_to_right = n_steps * amphipod.move_cost();
                     moves.push((COR_ROW, col, State::InHallway, cost_to_right));
                 }
             } else {
@@ -271,7 +245,7 @@ impl World {
             panic!("Attempted to park an unmoved/finished amphipod!");
         }
 
-        let target_col = get_target_col(&amphipod.kind);
+        let target_col = amphipod.target_col();
         if !self.is_free(UR_ROW, target_col) {
             // Can't get into the target room, no action to do.
             // Note that we can't already be at target if we are in the hallway.
@@ -281,10 +255,10 @@ impl World {
         // If both slots are free in the room, go to the bottom one, if you can.
         let mut target_bot = false;
         let mut can_path: bool = true;
-        if self.is_free(LR_ROW, target_col) {
+        if self.is_free(MR_ROW, target_col) {
             target_bot = true;
             // Both slots are free, go to the bottom one, provided we can path there.
-        } else if self.at(LR_ROW, target_col).kind != amphipod.kind {
+        } else if self.at(MR_ROW, target_col).kind != amphipod.kind {
             // Upper is free but lower is occupied by something that needs to get out, nothing to do
             can_path = false;
         } else {
@@ -312,8 +286,9 @@ impl World {
         if can_path {
             let n_vert_steps = if target_bot { 2 } else { 1 };
             let n_steps = ((target_col - amphipod.col).abs() + n_vert_steps) as i64;
-            let cost = n_steps * get_cost(&amphipod.kind);
-            let target_row = if target_bot { LR_ROW } else { UR_ROW };
+            let cost = n_steps * amphipod.move_cost();
+            // TODO(andrei): Compute the height motion using MATH.
+            let target_row = if target_bot { MR_ROW } else { UR_ROW };
             moves.push((target_row, target_col, cost));
         }
 
@@ -325,11 +300,10 @@ impl World {
         let mut new_worlds = Vec::new();
 
         for a_idx in 0..self.amphipods.len() {
-            let a = &self.amphipods[a_idx];
-            match a.state {
+            let amphipod = &self.amphipods[a_idx];
+            match amphipod.state {
                 State::Done => {}
                 State::Unmoved => {
-                    // Generate a new world for every possible move
                     for (mv_row, mv_col, mv_state, mv_cost) in self.valid_moves(a_idx) {
                         let new_world = self.with_move(a_idx, mv_row, mv_col, mv_cost, mv_state);
                         new_worlds.push(new_world);
@@ -358,7 +332,7 @@ fn print_world(world: &World) {
     ];
     for a in &world.amphipods {
         let c = (a.col + 1) as usize;
-        out_arr[(a.row + 1) as usize].replace_range(c..c + 1, get_initial(&a.kind));
+        out_arr[(a.row + 1) as usize].replace_range(c..c + 1, a.initial());
     }
 
     for row in out_arr {
@@ -367,54 +341,49 @@ fn print_world(world: &World) {
     println!("Cost: {}", world.cost_so_far);
 }
 
-fn day_23_amphipods() {
-    let mut world = World::new();
-    // world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Bronze));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Amber));
-
-    // world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Copper));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Desert));
-
-    // world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Bronze));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Copper));
-
-    // world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Amber));
+fn part_1_sample_world() -> World {
     // Sample input:
     // "BCBD / ADCA"
+    let mut world = World::new(PART_2_HEIGHT);
+    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(MR_ROW, 2, Kind::Amber));
 
-    // Contest input
-    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Desert));
-    world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Copper));
+    world.amphipods.push(Amphipod::new(MR_ROW, 4, Kind::Desert));
 
-    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Amber));
-    world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Copper));
-
-    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Copper));
-    world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Bronze));
+    world.amphipods.push(Amphipod::new(MR_ROW, 6, Kind::Copper));
 
     world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
-    world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Amber));
+    world.amphipods.push(Amphipod::new(MR_ROW, 8, Kind::Amber));
 
-    // Dummy case where the initial world is actually solved
-    //
-    // world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Amber));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 2, Kind::Amber));
+    world
+}
 
-    // world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Bronze));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 4, Kind::Bronze));
+fn part_1_contest_world() -> World {
+    let mut world = World::new(PART_1_HEIGHT);
 
-    // world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Copper));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 6, Kind::Copper));
+    world.amphipods.push(Amphipod::new(UR_ROW, 2, Kind::Desert));
+    world.amphipods.push(Amphipod::new(MR_ROW, 2, Kind::Bronze));
 
-    // world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
-    // world.amphipods.push(Amphipod::new(LR_ROW, 8, Kind::Desert));
+    world.amphipods.push(Amphipod::new(UR_ROW, 4, Kind::Amber));
+    world.amphipods.push(Amphipod::new(MR_ROW, 4, Kind::Copper));
 
-    print_world(&world);
+    world.amphipods.push(Amphipod::new(UR_ROW, 6, Kind::Copper));
+    world.amphipods.push(Amphipod::new(MR_ROW, 6, Kind::Bronze));
+
+    world.amphipods.push(Amphipod::new(UR_ROW, 8, Kind::Desert));
+    world.amphipods.push(Amphipod::new(MR_ROW, 8, Kind::Amber));
+
+    world
+}
+
+fn solve(initial_world: &World) {
+    print_world(&initial_world);
 
     // TODO(andrei): Compute max step count meaningfully
-    let mut worlds = vec![world];
-    let mut min_cost: i64 = 100000000;
+    let mut worlds = vec![initial_world.clone()];
+    let mut min_cost: i64 = i64::MAX;
     for generation in 0..25 {
         println!("Generation {}, {} worlds", generation, worlds.len());
         let mut new_worlds = Vec::new();
@@ -479,10 +448,10 @@ fn day_23_amphipods() {
             }
         }
 
-        println!("min cost so far: {}", min_cost);
         worlds.clear();
         for el in amphi_to_cost {
             worlds.push(World {
+                height: initial_world.height,
                 amphipods: el.0,
                 cost_so_far: el.1,
             });
@@ -490,21 +459,19 @@ fn day_23_amphipods() {
     }
 
     println!("min cost ever = {}", min_cost);
+}
 
-    // let new_worlds = world.moves();
-    // println!("{}", new_worlds.len());
-    // for w in &new_worlds {
-    //     print_world(w);
+fn part_1() {
+    println!("Part 1:");
+    println!("Sample:");
+    solve(&part_1_sample_world());
 
-    //     // TODO(andrei): This is just extremely lazy coding...
-    //     let new_new_worlds = w.moves();
-    //     println!("=============================");
-    //     println!("{}", new_new_worlds.len());
-    //     for nw in new_new_worlds {
-    //         print_world(&nw);
-    //     }
-    //     println!("\n\n");
-    // }
+    println!("Contest:");
+    solve(&part_1_contest_world());
+}
+
+fn day_23_amphipods() {
+    part_1();
 }
 
 fn main() {
