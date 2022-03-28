@@ -242,25 +242,40 @@ impl World {
         }
 
         let target_col = amphipod.target_col();
-        if !self.is_free(UR_ROW, target_col) {
+
+        // Find the bottom-most slot in the target room.
+        // If all occupied slots under _that_ one are the right kind, move in, otherwise do nothing.
+        let mut target_row = -1i32;
+        for r in 1i32..(self.height as i32) {
+            if !self.is_free(r, target_col) {
+                target_row = r - 1;
+                break;
+            }
+        }
+        if target_row == 0 {
             // Can't get into the target room, no action to do.
-            // Note that we can't already be at target if we are in the hallway.
+            return Vec::new();
+        }
+        if target_row == -1i32 {
+            // All rows are free, set the bottom one as a target
+            target_row = (self.height as i32) - 1;
+        }
+
+        let mut homogeneous = true;
+        for r in target_row + 1i32..(self.height as i32) {
+            if self.at(r, target_col).kind != amphipod.kind {
+                homogeneous = false;
+                break;
+            }
+        }
+
+        if !homogeneous {
             return Vec::new();
         }
 
-        // If both slots are free in the room, go to the bottom one, if you can.
-        let mut target_bot = false;
-        let mut can_path: bool = true;
-        if self.is_free(MR_ROW, target_col) {
-            target_bot = true;
-            // Both slots are free, go to the bottom one, provided we can path there.
-        } else if self.at(MR_ROW, target_col).kind != amphipod.kind {
-            // Upper is free but lower is occupied by something that needs to get out, nothing to do
-            can_path = false;
-        } else {
-            // Upper is free and lower is same type as me
-        }
-
+        // At this point, we've established the room is fine for us to go in, but now we need to check if we can
+        // actually get to its entrance!
+        let mut can_path = true;
         if target_col > amphipod.col {
             // check right move
             for col in amphipod.col + 1..=target_col {
@@ -280,11 +295,9 @@ impl World {
         }
 
         if can_path {
-            let n_vert_steps = if target_bot { 2 } else { 1 };
-            let n_steps = ((target_col - amphipod.col).abs() + n_vert_steps) as i64;
-            let cost = n_steps * amphipod.move_cost();
-            // TODO(andrei): Compute the height motion using MATH.
-            let target_row = if target_bot { MR_ROW } else { UR_ROW };
+            let n_hor_steps = ((target_col - amphipod.col).abs()) as i64;
+            let n_ver_steps = target_row as i64;
+            let cost = (n_hor_steps + n_ver_steps) * amphipod.move_cost();
             moves.push((target_row, target_col, cost));
         }
 
